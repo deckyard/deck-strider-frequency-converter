@@ -1,0 +1,14 @@
+# Grimoire output
+site/
+
+# Release staging
+dist/
+*.tar.gz
+*.tar.gz.sha256
+
+# Hand-populated deck tree
+vendor/
+
+# Real STRidER export - downloaded by the user, never redistributed.
+# See https://strider.online/terms_of_use
+strider.xml

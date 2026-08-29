@@ -1,0 +1,30 @@
+[package]
+name = "@mplx/strider"
+version = "0.1.0"
+description = "Reader for STRidER-style STR allele-frequency tables in XML, converting them into the generic @jennifer/forensicgenetics FrequencyDb."
+license = "LGPL-3.0-only"
+authors = ["mplx <jennifer@mplx.dev>"]
+capabilities = []
+keywords = ["forensics", "genetics", "str", "strider", "xml"]
+
+[package.urls]
+deck = "https://raw.githubusercontent.com/mplx/deck-strider-frequency-converter/main/deck.toml"
+homepage = "https://github.com/mplx/deck-strider-frequency-converter"
+manual = "https://mplx.github.io/deck-strider-frequency-converter/"
+
+[engines]
+jennifer = ">=0.25.0"
+jennifer-tiny = ">=0.25.0"
+
+# The one deck dependency. This reader produces a FrequencyDb, which the
+# forensicgenetics deck defines; the dependency runs one way only - nothing in
+# forensicgenetics knows this deck exists.
+[decks]
+"@jennifer/forensicgenetics" = ">=0.1.0"
+
+# Where that dependency is read from. It is not in the public registry yet, so
+# it resolves from its git remote instead; the constraint above still decides
+# which tag is taken (the remote currently offers 0.1.0). Drop this section once
+# the deck is published and the registry can answer for it.
+[sources]
+"@jennifer/forensicgenetics" = "https://github.com/jennifer-language/deck-forensicgenetics.git"

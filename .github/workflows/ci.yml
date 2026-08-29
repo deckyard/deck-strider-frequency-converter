@@ -1,0 +1,136 @@
+# CI/CD for @mplx/strider.
+#
+#   every push / PR   -> fmt, lint, tests, examples, and a docs build
+#   push to main      -> the docs are published to GitHub Pages
+#   push of a v* tag  -> a GitHub release with a vendorable tarball
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  JENNIFER_IMAGE: ghcr.io/jennifer-language/jennifer:dev
+  GRIMOIRE_IMAGE: ghcr.io/jennifer-language/grimoire:latest
+  # This deck imports @jennifer/forensicgenetics. jvc could resolve it - the
+  # manifest carries a [sources] entry pointing at this same remote - but the
+  # interpreter image below does not ship jvc, so CI hand-populates the vendor
+  # tree the @scope/package resolver reads rather than installing a deck manager
+  # first. Switch to `jvc install` once the image carries it.
+  # Pinned to a release tag rather than main, so a change over there cannot turn
+  # this deck's CI red on a commit that did not touch it. Bump it deliberately.
+  FORENSICGENETICS_REPO: https://github.com/jennifer-language/deck-forensicgenetics
+  FORENSICGENETICS_REF: "0.1.0"
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull the interpreter image
+        run: docker pull "$JENNIFER_IMAGE"
+
+      - name: Report the interpreter version
+        run: docker run --rm "$JENNIFER_IMAGE" version
+
+      # The one deck dependency, hand-installed. See FORENSICGENETICS_REF.
+      - name: Vendor @jennifer/forensicgenetics
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "$FORENSICGENETICS_REF" \
+            "$FORENSICGENETICS_REPO" /tmp/forensicgenetics
+          mkdir -p vendor/jennifer/forensicgenetics
+          cp /tmp/forensicgenetics/src/*.j vendor/jennifer/forensicgenetics/
+          rm -f vendor/jennifer/forensicgenetics/*_test.j
+
+      - name: Formatting
+        run: |
+          set -euo pipefail
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
+            "$JENNIFER_IMAGE" fmt -w src/*.j examples/*.j
+          if ! git diff --quiet -- 'src/*.j' 'examples/*.j'; then
+            echo "::error::sources are not formatted; run: jennifer fmt -w src/*.j examples/*.j"
+            git --no-pager diff -- 'src/*.j' 'examples/*.j'
+            exit 1
+          fi
+
+      - name: Lint
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/work" -w /work "$JENNIFER_IMAGE" \
+            lint src/*.j examples/*.j
+
+      - name: Unit tests
+        run: |
+          set -euo pipefail
+          for f in src/*_test.j; do
+            echo "::group::$f"
+            docker run --rm -v "$PWD:/work" -w /work "$JENNIFER_IMAGE" test "$f"
+            echo "::endgroup::"
+          done
+
+      - name: Examples
+        run: |
+          set -euo pipefail
+          for e in examples/*.j; do
+            echo "::group::$e"
+            docker run --rm -v "$PWD:/work" -w /work "$JENNIFER_IMAGE" run "$e"
+            echo "::endgroup::"
+          done
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull the Grimoire image
+        run: docker pull "$GRIMOIRE_IMAGE"
+
+      - name: Build the book
+        run: |
+          set -euo pipefail
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$PWD:/work" "$GRIMOIRE_IMAGE" build --verbose
+
+      - name: Check the build produced a site
+        run: test -s site/index.html
+
+      - name: Upload the Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  # The artifact above is inert until something deploys it. This is the job that
+  # publishes it, and the `environment.url` below is what GitHub shows as the
+  # docs URL - it is derived from the repository (owner.github.io/repo), so the
+  # move to mplx/deck-strider-frequency-converter is picked up with nothing to
+  # hardcode here. Pages must be set to "GitHub Actions" as its source in the
+  # repository settings for this to run.
+  deploy:
+    name: Publish to Pages
+    runs-on: ubuntu-latest
+    needs: docs
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy the book
+        id: deployment
+        uses: actions/deploy-pages@v4
