@@ -69,8 +69,8 @@ program.
 
 The checkout carries its own git-ignored `vendor/` populated the same way, so
 `jennifer test src/strider_test.j` and `jennifer run examples/readtable.j` work
-from the deck root. CI recreates it from the forensicgenetics repository on
-every run, pinned to that deck's `0.1.0` tag rather than to `main`, so a change
-over there cannot turn this deck's build red on a commit that did not touch it.
-Keep the local tree on the same tag if you want a local run to mean what CI's
-does.
+from the deck root. `tools/vendor-deps.sh` populates it from the manifest: it
+reads `[decks]` for the constraint and `[sources]` for the git remote, then
+vendors the highest tag satisfying it. CI runs the same script, so a local tree
+and CI's agree by construction, and a dependency resolves to a release tag
+rather than to a moving `main`.

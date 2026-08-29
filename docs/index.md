@@ -35,5 +35,5 @@ estimators.
   `testdata/frequencies.xml` is synthetic.
 - It does not combine populations. That is a question about `FrequencyDb`
   values, so it lives in the core - see
-  [Choosing a dataset](guide/datasets.md).
+  [Choosing a dataset](datasets.md).
 - It applies no frequency floor. `forensics.alleleFrequency` does that on read.

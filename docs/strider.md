@@ -39,11 +39,28 @@ population is chosen afterwards, by name. `parse` returns the frequencies
 | `loci(t, population as string)` | `list of string` - the loci typed in that population |
 | `sampleSize(t, population, locus as string)` | `int` - N, `0` if the export stated none |
 | `frequencySum(t, population, locus as string)` | `float` - should be ≈ 1.0 |
+| `frequencySums(t, population as string)` | `map of string to float` - locus → sum, in document order |
+| `allFrequencySums(t)` | `map of string to map of string to float` - population → locus → sum |
 | `toFrequencyDb(t, population, name as string)` | `forensics.FrequencyDb` - `name` labels the dataset, `""` uses the population's own |
 | `load(doc, population, name as string)` | `forensics.FrequencyDb` - `parse` then `toFrequencyDb` |
 
 `loci` is asked **per population** because the set differs: a country
 contributing few samples carries fewer loci than the whole database does.
+
+**Prefer the bulk forms to a loop.** A `Table` is a value, so every accessor
+call copies the whole export - all 33 populations of a real download. The three
+sum accessors differ only in how many times that copy is paid; over a full
+download they measure:
+
+| form | copies | ms |
+| --- | ---: | ---: |
+| `frequencySum` per locus | 704 | 1379 |
+| `frequencySums` per population | 33 | 100 |
+| `allFrequencySums` once | 1 | 48 |
+
+Same 704 sums in every row. Use `allFrequencySums` to audit a fresh download,
+`frequencySums` for the one population you will compute with, and
+`frequencySum` for a single locus.
 
 Use `parse` + `toFrequencyDb` rather than `load` when you want more than one
 population out of a document - the export holds them all, so re-parsing it per

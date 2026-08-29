@@ -4,8 +4,8 @@
 run over a full STRidER download - 45 loci across 33 populations, 704
 locus-by-population cells, every locus summing to 1.0 within the six significant
 figures published, and all 33 populations converting cleanly. That is one
-snapshot of one format. Exports change, so check your own download and use
-`frequencySum` on every locus - that check exists because a misread table is
+snapshot of one format. Exports change, so check your own download with
+`allFrequencySums` - that check exists because a misread table is
 plausible-looking rather than obviously broken.
 
 **The bundled table is synthetic, and no real one can be bundled.**
@@ -34,7 +34,7 @@ the point of the split.
 
 **No population combination here.** Pooling and uncertain-population estimators
 operate on `FrequencyDb` values and live in the core deck. See
-[Choosing a dataset](../guide/datasets.md) - and note that pooling and the
+[Choosing a dataset](datasets.md) - and note that pooling and the
 law-of-total-probability form give different answers, only one of which fits
 the "donor was German or Austrian" question.
 

@@ -43,16 +43,26 @@ population rather than of the export.
 The middle step is the one people skip.
 
 ```jennifer
-for (def locus in strider.loci($t, "AUSTRIA")) {
-    def total as float init strider.frequencySum($t, "AUSTRIA", $locus);
-    if (math.abs($total - 1.0) > 0.01) {
-        io.printf("locus %s sums to %f, not 1.0\n", $locus, $total);
+def sums as map of string to float init strider.frequencySums($t, "AUSTRIA");
+for (def locus in $sums) {
+    if (math.abs($sums[$locus] - 1.0) > 0.01) {
+        io.printf("locus %s sums to %f, not 1.0\n", $locus, $sums[$locus]);
     }
 }
 
 def db as forensics.FrequencyDb init
     strider.toFrequencyDb($t, "AUSTRIA", "STRidER AT");
 ```
+
+`frequencySums` rather than a loop over `frequencySum` is deliberate. A `Table`
+is a value, so passing it to an accessor copies the whole export - every
+population, not just the one asked about. Checking locus by locus pays that copy
+per locus and costs more than the parse it is checking: over a real download,
+1379 ms against 100 ms for the same 704 sums.
+
+To check the **whole** export rather than one population, `allFrequencySums($t)`
+pays the copy once for everything and halves it again, to 48 ms.
+`frequencySum` remains the right call for a single locus.
 
 A locus that does not sum to roughly 1.0 was read wrongly - a truncated
 download, a percentage-scaled table, or the wrong column taken as the

@@ -72,13 +72,17 @@ io.printf("populations: %d\n\n", len($pops));
 # download, a percentage-scaled table, or the wrong column taken as the
 # frequency. Always run this before the numbers reach a calculation.
 def bad as int init 0;
-for (def p in $pops) {
-    def li as list of string init strider.loci($t, $p);
-    io.printf("  %s|pad=24 %d|pad=3 loci\n", $p, len($li));
-    for (def locus in $li) {
-        def total as float init strider.frequencySum($t, $p, $locus);
-        if (math.abs($total - 1.0) > 0.01) {
-            io.printf("  SUSPECT %s / %s sums to %f|prec=4\n", $p, $locus, $total);
+# A Table is a value, so every accessor call copies the whole export - all 33
+# populations of a real download. This surveys everything, so it takes the
+# whole-export form: one copy for the lot. Looping frequencySums per population
+# is about 2x slower here, and looping the single-locus frequencySum ~30x.
+def all as map of string to map of string to float init strider.allFrequencySums($t);
+for (def p in $all) {
+    def sums as map of string to float init $all[$p];
+    io.printf("  %s|pad=24 %d|pad=3 loci\n", $p, len($sums));
+    for (def locus in $sums) {
+        if (math.abs($sums[$locus] -1.0) > 0.01) {
+            io.printf("  SUSPECT %s / %s sums to %f|prec=4\n", $p, $locus, $sums[$locus]);
             $bad = $bad + 1;
         }
     }

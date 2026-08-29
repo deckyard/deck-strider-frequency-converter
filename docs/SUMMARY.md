@@ -4,17 +4,17 @@
 
 # Getting started
 
-- [Installing the deck](getting-started/installation.md)
+- [Installing the deck](installation.md)
 
 # Guide
 
-- [Reading a table](guide/reading-a-table.md)
-- [Choosing a dataset](guide/datasets.md)
+- [Reading a table](reading-a-table.md)
+- [Choosing a dataset](datasets.md)
 
 # API reference
 
-- [strider](reference/strider.md)
+- [strider](strider.md)
 
 # The project
 
-- [Limitations](project/limitations.md)
+- [Limitations](limitations.md)

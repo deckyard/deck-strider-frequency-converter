@@ -5,7 +5,7 @@
   STRidER export at https://strider.online/frequencies/xml so the reader
   is exercised against the layout it actually has to parse.
   Download a real table from STRidER before computing anything you intend
-  to rely on - it is not redistributable, see docs/project/limitations.md.
+  to rely on - it is not redistributable, see docs/limitations.md.
 -->
 <frequencies created_timestamp="2026-01-15T09:00:00+01:00" validity="2026-01-01T00:00:00+01:00">
   <marker>

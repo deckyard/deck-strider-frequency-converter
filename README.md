@@ -1,6 +1,7 @@
 # @mplx/strider
 
-[![CI](https://github.com/mplx/deck-strider-frequency-converter/actions/workflows/ci.yml/badge.svg)](https://github.com/mplx/deck-strider-frequency-converter/actions/workflows/ci.yml)
+[![test](https://github.com/mplx/deck-strider-frequency-converter/actions/workflows/test.yml/badge.svg)](https://github.com/mplx/deck-strider-frequency-converter/actions/workflows/test.yml)
+[![docs](https://github.com/mplx/deck-strider-frequency-converter/actions/workflows/docs.yml/badge.svg)](https://github.com/mplx/deck-strider-frequency-converter/actions/workflows/docs.yml)
 [![release](https://img.shields.io/github/v/release/mplx/deck-strider-frequency-converter)](https://github.com/mplx/deck-strider-frequency-converter/releases/latest)
 
 Reads a published **STRidER**-style STR allele-frequency table in XML and
@@ -23,7 +24,7 @@ def t as strider.Table init strider.parse($xml);
 strider.populations($t);                      # ["Entire Database", "Europe", "AUSTRIA", ...]
 
 # Parse, check, then convert - the check is the part people skip.
-strider.frequencySum($t, "AUSTRIA", "D3S1358");   # should be ~1.0
+strider.frequencySums($t, "AUSTRIA");             # locus -> sum, each ~1.0
 
 def db as forensics.FrequencyDb init strider.toFrequencyDb($t, "AUSTRIA", "STRidER AT");
 
@@ -38,6 +39,8 @@ def db2 as forensics.FrequencyDb init strider.load($xml, "AUSTRIA", "STRidER AT"
 | `loci(t, population)` | `list of string` - the loci typed in that population |
 | `sampleSize(t, population, locus)` | `int` - N, `0` if unstated |
 | `frequencySum(t, population, locus)` | `float` - should be ≈ 1.0 |
+| `frequencySums(t, population)` | `map of string to float` - every locus at once; use this to check |
+| `allFrequencySums(t)` | `map of string to map of string to float` - every population at once |
 | `toFrequencyDb(t, population, name)` | `forensics.FrequencyDb` |
 | `load(doc, population, name)` | `parse` then `toFrequencyDb` |
 

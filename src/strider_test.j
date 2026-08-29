@@ -167,6 +167,68 @@ func testBundledSampleExportParses() {
     }
 }
 
+func testFrequencySumsMatchesThePerLocusForm() {
+    def t as Table init parse(doc('<marker><name>A</name>' +
+        '<origin name="P" n="10">' +
+        '<frequency allele="1">2.50000e-1</frequency>' +
+        '<frequency allele="2">7.50000e-1</frequency></origin></marker>' +
+        '<marker><name>B</name><origin name="P" n="10">' +
+        '<frequency allele="1">1.00000e0</frequency></origin>' +
+        '<origin name="Q" n="10">' +
+        '<frequency allele="1">4.00000e-1</frequency>' +
+        '<frequency allele="2">6.00000e-1</frequency></origin></marker>'));
+    # The bulk form exists to avoid copying the Table once per locus; it must
+    # agree with the single-locus form exactly, not merely closely.
+    def sums as map of string to float init frequencySums($t, "P");
+    testing.assertEqual(maps.keys($sums), ["A", "B"]);
+    near($sums["A"], frequencySum($t, "P", "A"));
+    near($sums["B"], frequencySum($t, "P", "B"));
+    near($sums["A"], 1.0);
+
+    # Scoped to the population asked for: Q carries B only.
+    def qsums as map of string to float init frequencySums($t, "Q");
+    testing.assertEqual(maps.keys($qsums), ["B"]);
+    near($qsums["B"], 1.0);
+}
+
+func testAllFrequencySumsCoversEveryPopulation() {
+    def t as Table init parse(doc('<marker><name>A</name>' +
+        '<origin name="P" n="10">' +
+        '<frequency allele="1">2.50000e-1</frequency>' +
+        '<frequency allele="2">7.50000e-1</frequency></origin>' +
+        '<origin name="Q" n="10">' +
+        '<frequency allele="1">1.00000e0</frequency></origin></marker>' +
+        '<marker><name>B</name><origin name="P" n="10">' +
+        '<frequency allele="1">1.00000e0</frequency></origin></marker>'));
+    def all as map of string to map of string to float init allFrequencySums($t);
+    # Same populations and loci the per-population form reports, and the same
+    # numbers - the whole-export form is an optimisation, not a variant.
+    testing.assertEqual(maps.keys($all), populations($t));
+    for (def p in populations($t)) {
+        def one as map of string to float init frequencySums($t, $p);
+        testing.assertEqual(maps.keys($all[$p]), maps.keys($one));
+        for (def locus in $one) {
+            near($all[$p][$locus], $one[$locus]);
+        }
+    }
+    # Q is typed at A only, P at both.
+    testing.assertEqual(maps.keys($all["P"]), ["A", "B"]);
+    testing.assertEqual(maps.keys($all["Q"]), ["A"]);
+    near($all["P"]["A"], 1.0);
+}
+
+func sumsOfAnUnknownPopulation() {
+    frequencySums(
+        parse(doc('<marker><name>A</name>' +
+            '<origin name="P" n="1"><frequency allele="1">1.0e0</frequency></origin>' +
+            '</marker>')),
+        "NOPE");
+}
+
+func testFrequencySumsRejectsAnUnknownPopulation() {
+    testing.assertThrows("sumsOfAnUnknownPopulation", "strider");
+}
+
 # --- rejections -------------------------------------------------------------
 
 func emptyDocument() {

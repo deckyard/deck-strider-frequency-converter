@@ -10,7 +10,7 @@ clean = true
 jobs = 0
 
 [html]
-theme = "grimoire"
+theme = "meridian"
 mode = "auto"
 navPosition = "left"
 tocPosition = "right"
