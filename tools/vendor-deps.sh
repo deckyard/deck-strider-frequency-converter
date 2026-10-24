@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <jennifer@mplx.dev>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 #
 # Populate vendor/ with this deck's `[decks]` dependencies before anything that
 # has to load them - lint, the suites, the examples.
 #
-# This is the one place deck-strider differs from the shared workflows. jvc is
-# the real resolver and does this properly, but the interpreter image CI runs in
-# does not ship it, and installing a deck manager to fetch a single dependency
-# costs more than it saves. When the image carries jvc, delete this script and
-# call `jvc install` instead.
+# jvc is the real resolver and does this properly, but the interpreter image CI
+# runs in does not ship it, and installing a deck manager to fetch a handful of
+# sources costs more than it saves. When the image carries jvc, replace the body
+# of this script with `jvc install`. A deck with no dependencies - most of them
+# - has nothing to do here, so the workflows call this unconditionally.
 #
 # What it does: for every `[decks]` entry that also has a `[sources]` git URL,
 # clone at the highest tag satisfying the constraint and copy its `src/` into
@@ -34,15 +34,38 @@ deck_load
 # four manifest formats the deck uses.
 deck_requirements() {
     python3 - "$DECK_MANIFEST" <<'PY'
-import json, sys, pathlib
+import json, re, sys, pathlib
 
 path = pathlib.Path(sys.argv[1])
 text = path.read_text()
+
+def yaml_maps(text, wanted):
+    """The two-level `key: value` maps under the wanted top-level keys - all a
+    manifest needs, so a runner without PyYAML can still read one."""
+    out, cur = {}, None
+    for raw in text.splitlines():
+        line = raw.split(' #')[0].rstrip()
+        if not line.strip() or line.lstrip().startswith('#'):
+            continue
+        if not line.startswith(' '):
+            key = line.split(':')[0].strip()
+            cur = key if key in wanted else None
+            if cur:
+                out[cur] = {}
+            continue
+        m = re.match(r'^\s+("?[^":]+"?|"[^"]+")\s*:\s*(.+)$', line)
+        if cur and m:
+            out[cur][m.group(1).strip().strip('"\'')] = m.group(2).strip().strip('"\'')
+    return out
+
 if path.suffix == ".json":
     doc = json.loads(text)
 elif path.suffix in (".yaml", ".yml"):
-    import yaml
-    doc = yaml.safe_load(text)
+    try:
+        import yaml
+        doc = yaml.safe_load(text)
+    except ImportError:
+        doc = yaml_maps(text, {"decks", "sources"})
 else:
     import tomllib
     doc = tomllib.loads(text)
@@ -101,8 +124,9 @@ while IFS=$'\t' read -r name constraint url; do
     dest="vendor/${scope}/${slug}"
     rm -rf "$dest"
     mkdir -p "$dest"
-    cp "$tmp/src/src/"*.j "$dest/"
-    rm -f "$dest"/*_test.j
+    # The whole src/ subtree, so a topics deck keeps its src/topics/.
+    cp -R "$tmp/src/src/." "$dest/"
+    find "$dest" \( -name '*_test.j' -o -name '.no-overlay' \) -delete
     rm -rf "$tmp"
     trap - EXIT
 

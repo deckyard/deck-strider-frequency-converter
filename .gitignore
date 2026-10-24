@@ -12,3 +12,6 @@ vendor/
 # Real STRidER export - downloaded by the user, never redistributed.
 # See https://strider.online/terms_of_use
 strider.xml
+.jennifer-src/
+.ci-fixtures/
+.jfmt-*.tmp
