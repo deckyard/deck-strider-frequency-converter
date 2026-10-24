@@ -1,43 +1,43 @@
 # Installing the deck
 
-Requires Jennifer 0.25.0 or newer and `@jennifer/forensicgenetics`.
+Requires Jennifer 0.25.0 or newer and `@deckyard/forensicgenetics`.
 
 ## With jvc
 
-[jvc](https://github.com/jennifer-language/jvc) is the deck manager. It reads
-the manifest, resolves the dependency graph, and writes the `vendor/` tree the
-`@scope/package` resolver addresses:
-
 ```sh
-jvc source @mplx/strider https://github.com/mplx/deck-strider-frequency-converter.git
-jvc add @mplx/strider
+jvc source @deckyard/strider https://github.com/deckyard/deck-strider-frequency-converter.git
+jvc add @deckyard/strider
 jvc install
 ```
 
-`jvc install` pins what it resolved in a `camcorder.lock`, so a later install on
-another machine reproduces the same versions rather than re-resolving.
+Neither this deck nor `@deckyard/forensicgenetics` is in the public registry
+yet, so both resolve from their git remotes by tag. The `source` line points jvc
+at this deck; its manifest already has the `[sources]` entry for the
+dependency. Once both are published, `jvc add @deckyard/strider` and
+`jvc install` are enough.
 
-The `source` line is what makes this work today: neither this deck nor
-`@jennifer/forensicgenetics` has been published to the public registry yet, so
-they resolve from their git remotes (by tag) rather than by name. This deck's
-manifest already carries a `[sources]` entry for its dependency, so only this
-deck needs pointing at. When both are published, `jvc add @mplx/strider`
-followed by `jvc install` is the whole procedure.
+`jvc install` pins what it resolved in `camcorder.lock`, so an install on
+another machine gets the same versions.
 
 ## By hand
 
-The vendor tree is a plain directory layout, so it can also be populated by
-copying - which is what this repository's CI does, since the interpreter image
-it builds in does not carry jvc:
+The vendor tree is a plain directory layout. Copy `src/` from a checkout or a
+release archive (`deckyard-strider-<version>.tar.gz`):
+
+```sh
+mkdir -p vendor/deckyard/strider vendor/deckyard/forensicgenetics
+cp path/to/deck-strider-frequency-converter/src/*.j vendor/deckyard/strider/
+cp path/to/deck-forensicgenetics/src/*.j            vendor/deckyard/forensicgenetics/
+rm -f vendor/*/*/*_test.j
+```
 
 ```
 your-project/
   app.j
   vendor/
-    mplx/
+    deckyard/
       strider/
         strider.j
-    jennifer/
       forensicgenetics/
         forensicgenetics.j
         kinship.j
@@ -45,32 +45,25 @@ your-project/
         lineage.j
 ```
 
-```sh
-mkdir -p vendor/mplx/strider vendor/jennifer/forensicgenetics
-cp path/to/deck-strider-frequency-converter/src/*.j vendor/mplx/strider/
-cp path/to/deck-forensicgenetics/src/*.j            vendor/jennifer/forensicgenetics/
-rm -f vendor/*/*/*_test.j
-```
-
-The installed tree is **flat**: the entry file sits at the root of the package
-directory, because `@mplx/strider/` expands to the package-named entry
+The tree is flat: `@deckyard/strider/` expands to the package-named entry
 `strider/strider.j`.
 
 ```jennifer
-import "@mplx/strider/" as strider;
-import "@jennifer/forensicgenetics/" as forensics;
+import "@deckyard/strider/" as strider;
+import "@deckyard/forensicgenetics/" as forensics;
 ```
 
-Either way the result is the same tree. The vendor root is found by
-`--vendor DIR`, then `JENNIFER_VENDOR`, then the nearest `vendor/` above the
-program.
+The vendor root is `--vendor DIR`, else `JENNIFER_VENDOR`, else the nearest
+`vendor/` above the program.
 
 ## Working in this repository
 
-The checkout carries its own git-ignored `vendor/` populated the same way, so
-`jennifer test src/strider_test.j` and `jennifer run examples/readtable.j` work
-from the deck root. `tools/vendor-deps.sh` populates it from the manifest: it
-reads `[decks]` for the constraint and `[sources]` for the git remote, then
-vendors the highest tag satisfying it. CI runs the same script, so a local tree
-and CI's agree by construction, and a dependency resolves to a release tag
-rather than to a moving `main`.
+The checkout has its own git-ignored `vendor/`. `tools/vendor-deps.sh` fills it
+from the manifest: `[decks]` gives the constraint, `[sources]` the git remote,
+and it vendors the highest satisfying release tag. CI runs the same script
+because its interpreter image has no jvc. Then, from the deck root:
+
+```sh
+jennifer test src/strider_test.j
+jennifer run examples/readtable.j
+```

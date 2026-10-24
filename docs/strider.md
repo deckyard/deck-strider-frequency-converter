@@ -1,85 +1,31 @@
 # `strider`
 
 ```jennifer
-import "@mplx/strider/" as strider;
+import "@deckyard/strider/" as strider;
 ```
 
-Reads a STRidER XML allele-frequency export and converts one population out of
-it into `forensics.FrequencyDb`. Errors are `Error{kind: "strider"}`; a
-conversion that fails the generic type's validation raises
-`kind: "forensicgenetics"`.
-
-## Types
-
-```jennifer
-def struct Table {
-    created as string,                             # the export's created_timestamp
-    validity as string,                            # the export's validity date
-    byPopulation as map of string to Population    # label -> that population's rows
-};
-
-def struct Population {
-    name as string,                                           # the origin's label
-    counts as map of string to int,                           # locus -> N, 0 if unstated
-    frequencies as map of string to map of string to float    # locus -> allele -> frequency
-};
-```
-
-One export carries **every population at once** - the whole database, each
-continent, and each contributing country - so `parse` reads them all and the
-population is chosen afterwards, by name. `parse` returns the frequencies
-**exactly as published**: no floor, no renormalisation.
-
-## Functions
-
-| Signature | Returns |
-| --- | --- |
-| `parse(doc as string)` | `Table` - every population in the export |
-| `populations(t)` | `list of string` - labels, in document order |
-| `loci(t, population as string)` | `list of string` - the loci typed in that population |
-| `sampleSize(t, population, locus as string)` | `int` - N, `0` if the export stated none |
-| `frequencySum(t, population, locus as string)` | `float` - should be ≈ 1.0 |
-| `frequencySums(t, population as string)` | `map of string to float` - locus → sum, in document order |
-| `allFrequencySums(t)` | `map of string to map of string to float` - population → locus → sum |
-| `toFrequencyDb(t, population, name as string)` | `forensics.FrequencyDb` - `name` labels the dataset, `""` uses the population's own |
-| `load(doc, population, name as string)` | `forensics.FrequencyDb` - `parse` then `toFrequencyDb` |
-
-`loci` is asked **per population** because the set differs: a country
-contributing few samples carries fewer loci than the whole database does.
-
-**Prefer the bulk forms to a loop.** A `Table` is a value, so every accessor
-call copies the whole export - all 33 populations of a real download. The three
-sum accessors differ only in how many times that copy is paid; over a full
-download they measure:
-
-| form | copies | ms |
-| --- | ---: | ---: |
-| `frequencySum` per locus | 704 | 1379 |
-| `frequencySums` per population | 33 | 100 |
-| `allFrequencySums` once | 1 | 48 |
-
-Same 704 sums in every row. Use `allFrequencySums` to audit a fresh download,
-`frequencySums` for the one population you will compute with, and
-`frequencySum` for a single locus.
-
-Use `parse` + `toFrequencyDb` rather than `load` when you want more than one
-population out of a document - the export holds them all, so re-parsing it per
-population is wasted work.
+Signatures and struct fields are in the [cheatsheet](cheatsheet.md), the
+document shape in [Reading a table](reading-a-table.md#the-shape-it-reads).
+Every accessor copies the whole `Table`; see
+[the cost table](reading-a-table.md#parse-check-convert) before looping one.
 
 ## Errors
 
-| Condition | `kind` |
-| --- | --- |
-| no `<marker>` elements in the document | `strider` |
-| markers present but none carries population data | `strider` |
-| a marker with no `<name>` child | `strider` |
-| an `<origin>` with no `name` attribute | `strider` |
-| a `<frequency>` with no `allele` attribute, or no value | `strider` |
-| duplicate allele within one population's locus | `strider` |
-| duplicate locus for one population | `strider` |
-| an unknown population or locus passed to any accessor | `strider` |
-| a frequency outside `(0, 1]`, or a locus summing past 1.05 | `forensicgenetics` |
+| Condition | `kind` | Thrown by |
+| --- | --- | --- |
+| no `<marker>` element in the document | `strider` | `parse`, `load` |
+| markers present but none carries population data | `strider` | `parse`, `load` |
+| a marker with no `<name>` child | `strider` | `parse`, `load` |
+| an `<origin>` with no `name` attribute | `strider` | `parse`, `load` |
+| a `<frequency>` with no `allele` attribute, or no value | `strider` | `parse`, `load` |
+| an allele listed twice in one population's locus | `strider` | `parse`, `load` |
+| a locus listed twice for one population | `strider` | `parse`, `load` |
+| malformed XML, or a frequency or `n` that is not a number | `runtime` | `parse`, `load` |
+| unknown population | `strider` | every function taking `population` |
+| unknown locus | `strider` | `sampleSize`, `frequencySum` |
+| a frequency outside `(0, 1]`, a locus summing above 1.05, or a negative `n` | `forensicgenetics` | `toFrequencyDb`, `load` |
 
-The last row is the generic type's own validation, raised through
-`forensics.withLocus` during conversion - a percentage-scaled table is caught
-there rather than silently producing probabilities above 1.
+`parse` accepts any number as a frequency, zero and negative values included.
+They are rejected only on conversion, by `forensics.withLocus`; that is also
+where a percentage-scaled table is caught instead of producing probabilities
+above 1.

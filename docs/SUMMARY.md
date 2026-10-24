@@ -13,6 +13,7 @@
 
 # API reference
 
+- [Cheatsheet](cheatsheet.md)
 - [strider](strider.md)
 
 # The project

@@ -2,8 +2,8 @@
 
 ## Getting the table
 
-The deck ships no real data and cannot. The published frequencies belong to
-their authors, and STRidER's [terms of use](https://strider.online/terms_of_use)
+The deck ships no real data. The published frequencies belong to their
+authors, and STRidER's [terms of use](https://strider.online/terms_of_use)
 reserve redistribution:
 
 > The reproduction, duplication, editing, dissemination and all type of
@@ -11,36 +11,31 @@ reserve redistribution:
 > author or producer. Downloads and copies of these pages are only for private
 > and not for commercial use.
 
-So the download is yours to make. Take the XML from
-<https://strider.online/frequencies/xml> and read it in:
+Download the XML yourself from <https://strider.online/frequencies/xml>. That
+permission covers private, non-commercial use; anything beyond it is a question
+for the rights holder. `testdata/frequencies.xml` is synthetic and carries no
+STRidER content.
 
 ```jennifer
 use fs;
 def xml as string init fs.readString("strider.xml");
 ```
 
-That permission covers **private, non-commercial** use; anything beyond it is a
-question for the rights holder. The `testdata/frequencies.xml` in the
-repository is synthetic and carries no STRidER content.
-
 ## One export, many populations
 
-A STRidER download is not one table but 33 - the whole database, each
-continent, and each contributing country - all in one document. `parse` reads
-them all at once, and the population is chosen afterwards by name:
+A download holds 33 tables in one document: the whole database, each continent
+and each contributing country. `parse` reads them all; you choose the
+population afterwards by name:
 
 ```jennifer
 def t as strider.Table init strider.parse($xml);
 strider.populations($t);   # ["Entire Database", "Africa", ..., "AUSTRIA", ...]
 ```
 
-Not every locus is typed in every population - a country contributing few
-samples carries fewer than the whole database does - so `loci` is asked per
-population rather than of the export.
+A country with few samples carries fewer loci than the whole database, so
+`loci` is asked per population.
 
 ## Parse, check, convert
-
-The middle step is the one people skip.
 
 ```jennifer
 def sums as map of string to float init strider.frequencySums($t, "AUSTRIA");
@@ -54,35 +49,38 @@ def db as forensics.FrequencyDb init
     strider.toFrequencyDb($t, "AUSTRIA", "STRidER AT");
 ```
 
-`frequencySums` rather than a loop over `frequencySum` is deliberate. A `Table`
-is a value, so passing it to an accessor copies the whole export - every
-population, not just the one asked about. Checking locus by locus pays that copy
-per locus and costs more than the parse it is checking: over a real download,
-1379 ms against 100 ms for the same 704 sums.
+A locus far from 1.0 was read wrongly: a truncated download, a
+percentage-scaled table, or the wrong value taken as the frequency. Conversion
+rejects a locus summing above 1.05, but a locus summing to 0.6 converts without
+complaint; only this check catches it.
 
-To check the **whole** export rather than one population, `allFrequencySums($t)`
-pays the copy once for everything and halves it again, to 48 ms.
-`frequencySum` remains the right call for a single locus.
+Use the bulk sum accessors, not a loop over `frequencySum`. A `Table` is a
+value, so each accessor call copies the whole export, every population
+included. Over a real download, the same 704 sums cost:
 
-A locus that does not sum to roughly 1.0 was read wrongly - a truncated
-download, a percentage-scaled table, or the wrong column taken as the
-frequency. The conversion will still refuse anything summing past 1.05, but a
-locus summing to 0.6 is a silent, plausible-looking error that only this check
-catches.
+| Form | `Table` copies | ms |
+| --- | ---: | ---: |
+| `frequencySum` per locus | 704 | 1379 |
+| `frequencySums` per population | 33 | 100 |
+| `allFrequencySums` once | 1 | 48 |
 
-When you already trust the file, `load` does both steps:
+`allFrequencySums($t)` audits the whole export, `frequencySums` the population
+you will compute with, and `frequencySum` a single locus.
+
+`load` parses and converts in one call:
 
 ```jennifer
 def db as forensics.FrequencyDb init strider.load($xml, "AUSTRIA", "STRidER AT");
 ```
 
-Reach for the two-step form when you want more than one population, though: the
-document already holds them all, so `load`-ing it twice parses half a megabyte
-twice for nothing.
+It skips the check, and calling it per population parses the whole document
+(about half a megabyte) each time. For more than one population, parse once
+and call `toFrequencyDb` for each.
 
 ## The shape it reads
 
-The export is locus-major, with the populations nested inside each locus:
+Locus-major, with the populations nested inside each locus (numbers
+illustrative):
 
 ```xml
 <frequencies created_timestamp="..." validity="...">
@@ -101,21 +99,19 @@ The export is locus-major, with the populations nested inside each locus:
 
 | Field | Read from |
 | --- | --- |
-| locus name | the `<name>` **child element** of `<marker>` |
-| population | the `name` attribute of `<origin>` |
-| `N` | the `n` attribute of `<origin>`, `0` if absent |
-| allele label | the `allele` attribute of `<frequency>` |
-| frequency | the text of `<frequency>`, in scientific notation |
+| locus name | text of the `<name>` child element of `<marker>` |
+| population | `name` attribute of `<origin>` |
+| `N` | `n` attribute of `<origin>`, `0` if absent |
+| allele label | `allele` attribute of `<frequency>`, kept as text (`9.3` and `9` are distinct) |
+| frequency | text of `<frequency>`, in scientific notation |
+| `Table.created`, `Table.validity` | `created_timestamp` and `validity` on the root element |
 
-Tags and attribute names match case-insensitively, and markers are found at any
-depth, so a re-nested or re-cased export still reads. The `<alleles>` list on a
-marker is the published ladder and is not needed to read frequencies, so it is
-ignored. A marker with no `<origin>` children is a locus the export has typed in
-no population; it contributes nothing rather than failing the parse.
+Tag and attribute names match in any case, and markers are found at any depth.
+The `<alleles>` list is ignored. A marker with no `<origin>` is a locus typed
+in no population; it contributes nothing. The real export has one.
 
 ## Frequencies are kept as published
 
-No floor, no renormalisation - the `Table` holds the document's own numbers, so
-`frequencySum` means something. The NRC II `5/(2N)` floor is applied later, on
-read, by `forensics.alleleFrequency`, which is why a `FrequencyDb` keeps a
-per-locus `N`.
+No floor and no renormalisation: the `Table` holds the document's numbers, so
+`frequencySum` is meaningful. The NRC II 5/(2N) floor is applied on read by
+`forensics.alleleFrequency`, which is why a `FrequencyDb` keeps a per-locus `N`.

@@ -1,19 +1,18 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <jennifer@mplx.dev>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 /**
- * STRidER STR allele-frequency table parsing.
+ * Reader for STRidER autosomal-STR allele-frequency exports in XML.
  *
- * Reads a published autosomal-STR allele-frequency export in XML and returns
- * plain per-population, per-locus allele -> frequency maps plus each locus's
- * sample size `N`. It deliberately returns *data*, not a
- * `forensics.FrequencyDb`: keeping this module free of the core's structs
- * allows `forensicgenetics.j` to import it without an import cycle.
+ * `parse` returns per-population, per-locus allele -> frequency maps with each
+ * locus's sample size `N`; `toFrequencyDb` converts one population into
+ * `forensics.FrequencyDb` from `@deckyard/forensicgenetics`. The dependency
+ * runs one way: the core does not import this module.
  *
- * The reader targets the layout STRidER actually publishes at
- * <https://strider.online/frequencies/xml>, which is **locus-major with the
- * populations nested inside each locus**:
+ * The reader targets the layout published at
+ * <https://strider.online/frequencies/xml>: locus-major, with the populations
+ * nested inside each locus (the numbers below are illustrative):
  *
  * ```xml
  * <frequencies created_timestamp="..." validity="...">
@@ -30,30 +29,22 @@
  * </frequencies>
  * ```
  *
- * One export therefore carries **many populations at once** - the whole
- * database, each continent, and each contributing country - so `parse` reads
- * them all and the population is chosen afterwards, by name, at the point a
- * `FrequencyDb` is built. `Table` is stored population-major, which is the
- * orientation every consumer wants, so the fold happens once during the parse
- * rather than at each lookup.
+ * One export carries the whole database, each continent and each
+ * contributing country. `parse` reads them all into a population-major
+ * `Table`; the population is chosen afterwards by name. Loci are typed
+ * unevenly across populations, so `loci` is asked per population.
  *
- * Not every locus is typed in every population: the number of `<origin>`
- * blocks varies from locus to locus, and a locus with none contributes
- * nothing. So `loci` is asked per population rather than of the table.
- *
- * `parse` returns the frequencies exactly as published - no floor, no
- * renormalisation. `toFrequencyDb` converts one population into the deck's
- * generic `forensics.FrequencyDb`, after which `forensics.alleleFrequency`
- * applies the 5/2N floor on read.
+ * Frequencies are kept as published, with no floor and no renormalisation;
+ * `forensics.alleleFrequency` applies the 5/(2N) floor on read.
  * @module strider
  * @see https://strider.online/ - the ENFSI STRidER reference database
  * @example
- * import "@mplx/strider/" as strider;
+ * import "@deckyard/strider/" as strider;
  * def t as strider.Table init strider.parse(fs.readString("strider.xml"));
  * strider.populations($t);                     # ["Entire Database", ...]
- * strider.frequencySum($t, "AUSTRIA", "TH01"); # should be ~1.0
+ * strider.frequencySum($t, "AUSTRIA", "TH01"); # ~1.0 for a sound table
  *
- * # ... or straight to the generic database the estimators take:
+ * # or parse and convert in one call:
  * def db as forensics.FrequencyDb init strider.load($doc, "AUSTRIA", "STRidER AT");
  */
 use xml;
@@ -61,12 +52,12 @@ use strings;
 use maps;
 use convert;
 
-import "@jennifer/forensicgenetics/" as forensics;
+import "@deckyard/forensicgenetics/" as forensics;
 
 /**
- * One population's frequencies, as published for that population alone.
- * @field name {string} the population label, verbatim from the `origin` element
- * @field counts {map of string to int} locus -> number of individuals typed (N), 0 if unstated
+ * One population's frequencies, as published.
+ * @field name {string} population label from the `<origin>` `name`, trimmed
+ * @field counts {map of string to int} locus -> individuals typed (N), 0 if unstated
  * @field frequencies {map of string to map of string to float} locus -> allele label ->
  *   published frequency
  */
@@ -77,11 +68,11 @@ export def struct Population {
 };
 
 /**
- * A parsed export: every population the document carries, keyed by name.
- * @field created {string} the document's `created_timestamp`, "" if it carried none
- * @field validity {string} the document's `validity` date, "" if it carried none
+ * A parsed export: every population the document carries, keyed by label.
+ * @field created {string} root element's `created_timestamp`, "" if absent
+ * @field validity {string} root element's `validity`, "" if absent
  * @field byPopulation {map of string to Population} population label -> its frequencies,
- *   in the order the document first mentions each
+ *   in order of first mention
  */
 export def struct Table {
     created as string,
@@ -244,15 +235,16 @@ func sumsFor(p as Population) {
 /**
  * Parse a STRidER XML allele-frequency export.
  *
- * Reads every population the document carries and returns them population-major,
- * with frequencies exactly as published. A document with no `<marker>` elements
- * is an error - that is almost always the wrong file rather than an empty
- * export.
- * @param doc {string} the XML document text
+ * Tag and attribute names match in any case, and `<marker>` elements are
+ * found at any depth. A marker with no `<origin>` contributes nothing.
+ * Frequencies are kept as published. A document with no markers is rejected:
+ * it is almost always the wrong file.
+ * @param doc {string} XML document text
  * @return {Table} every population the export describes
- * @throws {Error} kind "strider" on malformed XML, a marker with no name, an
- *   origin with no name, a duplicated allele or locus, an unparseable
- *   frequency, or a document with no markers
+ * @throws {Error} kind "strider" on a document with no markers or no
+ *   population data, a marker with no `<name>`, an origin with no `name`, a
+ *   frequency with no `allele` or no value, or a duplicated allele or locus;
+ *   kind "runtime" on malformed XML or a non-numeric frequency or `n`
  */
 export func parse(doc as string) {
     def root as xml.Value init xml.decode($doc);
@@ -291,12 +283,9 @@ export func parse(doc as string) {
 }
 
 /**
- * The populations an export carries, in the order it first mentions each.
- *
- * A STRidER export bundles the whole database, each continent and each
- * contributing country, so this is the list of labels the other calls accept.
- * @param t {Table} the parsed export
- * @return {list of string} the population labels
+ * The population labels the other calls accept, in order of first mention.
+ * @param t {Table} parsed export
+ * @return {list of string} population labels
  */
 export func populations(t as Table) {
     return maps.keys($t.byPopulation);
@@ -311,14 +300,12 @@ func find(t as Table, population as string) {
 }
 
 /**
- * The loci typed in one population, in document order.
- *
- * Asked per population rather than of the export as a whole, because the set
- * differs: a country contributing few samples carries fewer loci than the whole
- * database does.
- * @param t {Table} the parsed export
- * @param population {string} the population label
- * @return {list of string} the locus names
+ * The loci typed in one population, in document order. The set differs
+ * between populations: a country with few samples carries fewer loci than the
+ * whole database.
+ * @param t {Table} parsed export
+ * @param population {string} population label
+ * @return {list of string} locus names
  * @throws {Error} kind "strider" if the export has no such population
  */
 export func loci(t as Table, population as string) {
@@ -327,14 +314,12 @@ export func loci(t as Table, population as string) {
 }
 
 /**
- * The number of individuals typed at one locus in one population.
- *
- * `0` means the export stated no `N` for that cell, and therefore that no
- * `5/(2N)` frequency floor is available for it.
- * @param t {Table} the parsed export
- * @param population {string} the population label
- * @param locus {string} the locus name
- * @return {int} the sample size N
+ * The number of individuals typed at one locus in one population. 0 means the
+ * export stated no `N`, so no 5/(2N) floor is available for that locus.
+ * @param t {Table} parsed export
+ * @param population {string} population label
+ * @param locus {string} locus name
+ * @return {int} sample size N
  * @throws {Error} kind "strider" if the export has no such population or locus
  */
 export func sampleSize(t as Table, population as string, locus as string) {
@@ -346,15 +331,14 @@ export func sampleSize(t as Table, population as string, locus as string) {
 }
 
 /**
- * Sum the published frequencies at one locus in one population.
- *
- * A well-formed table sums to ~1.0 per locus; a sum far off that is the usual
- * sign of a truncated download or a percentage-scaled table, so this is the
- * cheap sanity check to run after `parse`.
- * @param t {Table} the parsed export
- * @param population {string} the population label
- * @param locus {string} the locus name
- * @return {float} the sum of that locus's published allele frequencies
+ * Sum the published frequencies at one locus in one population. A sound table
+ * sums to ~1.0; a sum far off is the usual sign of a truncated download or a
+ * percentage-scaled table. Each call copies the whole `Table`, so to check
+ * many loci use `frequencySums` or `allFrequencySums`.
+ * @param t {Table} parsed export
+ * @param population {string} population label
+ * @param locus {string} locus name
+ * @return {float} sum of the locus's published allele frequencies
  * @throws {Error} kind "strider" if the export has no such population or locus
  */
 export func frequencySum(t as Table, population as string, locus as string) {
@@ -371,17 +355,13 @@ export func frequencySum(t as Table, population as string, locus as string) {
 }
 
 /**
- * Sum the published frequencies at every locus in one population.
- *
- * The bulk form of `frequencySum`, and the one to use for the check that should
- * follow every parse. A `Table` is a value, so passing it to an accessor copies
- * the whole export - all 33 populations of a real download. Calling
- * `frequencySum` once per locus therefore pays that copy once per locus, which
- * costs far more than the parse it is checking. This pays it once for the whole
- * population instead.
- * @param t {Table} the parsed export
- * @param population {string} the population label
- * @return {map of string to float} locus -> the sum of its published frequencies,
+ * Sum the published frequencies at every locus in one population: the bulk
+ * form of `frequencySum`, and the check to run after `parse`. A `Table` is a
+ * value, so every accessor call copies the whole export (33 populations in a
+ * real download); this pays the copy once instead of once per locus.
+ * @param t {Table} parsed export
+ * @param population {string} population label
+ * @return {map of string to float} locus -> sum of its published frequencies,
  *   in document order; each should be ~1.0
  * @throws {Error} kind "strider" if the export has no such population
  */
@@ -391,16 +371,12 @@ export func frequencySums(t as Table, population as string) {
 }
 
 /**
- * Sum every locus in every population, in one pass over the export.
- *
- * The whole-export form of `frequencySums`. Looping `frequencySums` over
- * `populations` copies the Table once per population; this copies it once
- * in total, which measures about twice as fast over a real download - and about
- * 30x faster than looping the single-locus `frequencySum`. Use it when auditing
- * a fresh download end to end; use `frequencySums` when you care about the one
- * population you are going to compute with.
- * @param t {Table} the parsed export
- * @return {map of string to map of string to float} population -> locus -> the sum
+ * Sum every locus in every population, copying the `Table` once. Over a real
+ * download this is about twice as fast as looping `frequencySums` over
+ * `populations` and about 30x faster than looping `frequencySum`. Use it to
+ * audit a fresh download.
+ * @param t {Table} parsed export
+ * @return {map of string to map of string to float} population -> locus -> sum
  *   of its published frequencies, both in document order; each should be ~1.0
  */
 export func allFrequencySums(t as Table) {
@@ -413,22 +389,17 @@ export func allFrequencySums(t as Table) {
 }
 
 /**
- * Convert one population out of a parsed export into the generic database.
- *
- * This is the one direction the dependency runs: the reader knows the generic
- * type, the generic type knows nothing about STRidER. Frequencies cross over
- * exactly as published - `forensics.alleleFrequency` applies the 5/2N floor on
- * read, so the table keeps its original numbers.
- *
- * Which population a calculation used is part of the result, so `name` labels
- * the dataset. Pass `""` to fall back to the population's own label.
- * @param t {Table} the parsed export
- * @param population {string} the population label to convert
- * @param name {string} the dataset label, or "" to use the population's own
- * @return {forensics.FrequencyDb} the generic database
- * @throws {Error} kind "strider" if the export has no such population, or kind
- *   "forensicgenetics" if a locus fails the generic type's validation - a
- *   frequency outside (0, 1], or a locus summing far above 1.0
+ * Convert one population of a parsed export into a `forensics.FrequencyDb`.
+ * Frequencies and `N` cross over as published; `forensics.alleleFrequency`
+ * applies the 5/(2N) floor on read. The label becomes `FrequencyDb.name`, so a
+ * result records which dataset produced it.
+ * @param t {Table} parsed export
+ * @param population {string} population label to convert
+ * @param name {string} dataset label, or "" for the population's own label
+ * @return {forensics.FrequencyDb} the converted population
+ * @throws {Error} kind "strider" if the export has no such population; kind
+ *   "forensicgenetics" if a frequency is outside (0, 1] or a locus sums above
+ *   `forensics.MAX_FREQUENCY_SUM` (1.05)
  */
 export func toFrequencyDb(t as Table, population as string, name as string) {
     def p as Population init find($t, $population);
@@ -444,19 +415,16 @@ export func toFrequencyDb(t as Table, population as string, name as string) {
 }
 
 /**
- * Parse an export and convert one population straight into a generic database.
- *
- * `parse` then `toFrequencyDb` in one call. Use the two steps separately when
- * you want to run `frequencySum` over the parsed export first, which is the
- * check that catches a misread download before it reaches a calculation - and
- * when you want more than one population out of a single document, since a
- * STRidER export carries them all and re-parsing it per population is wasteful.
- * @param doc {string} the XML document text
- * @param population {string} the population label to convert
- * @param name {string} the dataset label, or "" to use the population's own
- * @return {forensics.FrequencyDb} the generic database
- * @throws {Error} kind "strider" if the document does not parse or has no such
- *   population, or kind "forensicgenetics" if a locus fails validation
+ * `parse` then `toFrequencyDb`. Use the two steps instead to check the sums
+ * with `frequencySums` before converting, or to take more than one population
+ * from a document without parsing it again.
+ * @param doc {string} XML document text
+ * @param population {string} population label to convert
+ * @param name {string} dataset label, or "" for the population's own label
+ * @return {forensics.FrequencyDb} the converted population
+ * @throws {Error} kind "strider" or "runtime" when `parse` fails, kind
+ *   "strider" if there is no such population, kind "forensicgenetics" if a
+ *   locus fails `FrequencyDb` validation
  */
 export func load(doc as string, population as string, name as string) {
     return toFrequencyDb(parse($doc), $population, $name);

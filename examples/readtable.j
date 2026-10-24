@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <jennifer@mplx.dev>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # Read a STRidER export, check it, and convert one population into the generic
@@ -29,7 +29,7 @@ use lists;
 use time;
 
 import "../src/strider.j" as strider;
-import "@jennifer/forensicgenetics/" as forensics;
+import "@deckyard/forensicgenetics/" as forensics;
 
 # elapsedMs reports a span in fractional milliseconds. time.milliseconds truncates
 # to whole ones, which reads as a flat 0 for the small fixture, so the nanosecond
@@ -95,7 +95,7 @@ if ($bad == 0) {
 
 # Which population a calculation used is part of the result, so it is chosen by
 # name and the resulting database is labelled with it. Converting a second one
-# needs no second parse - just another toFrequencyDb call against the same
+# needs no second parse, only another toFrequencyDb call against the same
 # Table, which is why the two-step form exists.
 def chosen as string init $pops[0];
 if (len(os.ARGS) > 2) {
