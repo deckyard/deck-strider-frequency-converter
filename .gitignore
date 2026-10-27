@@ -15,3 +15,4 @@ strider.xml
 .jennifer-src/
 .ci-fixtures/
 .jfmt-*.tmp
+.docblocks-*/
