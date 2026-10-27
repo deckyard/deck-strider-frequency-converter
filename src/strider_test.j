@@ -17,6 +17,146 @@ def const TOL as float init 0.000000001;
 # export does, so a locus sums to 1.0 only to within that rounding.
 def const SUM_TOL as float init 0.00001;
 
+# testdata/frequencies.xml, inline: a consumer runs this overlay from its own
+# tree, where testdata/ does not exist. testSampleMatchesTestdata keeps the two
+# copies equal.
+def const SAMPLE as string init '<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SYNTHETIC illustrative allele frequencies - NOT real population data.
+  Every number here is made up; only the *shape* is real, mirroring the
+  STRidER export at https://strider.online/frequencies/xml so the reader
+  is exercised against the layout it actually has to parse.
+  Download a real table from STRidER before computing anything you intend
+  to rely on - it is not redistributable, see docs/limitations.md.
+-->
+<frequencies created_timestamp="2026-01-15T09:00:00+01:00" validity="2026-01-01T00:00:00+01:00">
+  <marker>
+    <name>D3S1358</name>
+    <alleles>12, 13, 14, 15, 16, 17, 18, 19</alleles>
+    <origin name="Entire Database" n="17479">
+      <frequency allele="12">1.35127e-01</frequency>
+      <frequency allele="13">7.82777e-02</frequency>
+      <frequency allele="14">2.07941e-01</frequency>
+      <frequency allele="15">1.45961e-01</frequency>
+      <frequency allele="16">1.95766e-02</frequency>
+      <frequency allele="17">2.11882e-01</frequency>
+      <frequency allele="18">3.57246e-02</frequency>
+      <frequency allele="19">1.65510e-01</frequency>
+    </origin>
+    <origin name="Europe" n="9001">
+      <frequency allele="12">1.33721e-02</frequency>
+      <frequency allele="13">2.41649e-01</frequency>
+      <frequency allele="14">1.51585e-01</frequency>
+      <frequency allele="15">4.52012e-02</frequency>
+      <frequency allele="16">1.12787e-01</frequency>
+      <frequency allele="17">1.41475e-01</frequency>
+      <frequency allele="18">2.48346e-01</frequency>
+      <frequency allele="19">4.55853e-02</frequency>
+    </origin>
+    <origin name="AUSTRIA" n="1223">
+      <frequency allele="12">1.17129e-01</frequency>
+      <frequency allele="13">1.78756e-01</frequency>
+      <frequency allele="14">1.86410e-01</frequency>
+      <frequency allele="15">1.45612e-01</frequency>
+      <frequency allele="16">1.53580e-01</frequency>
+      <frequency allele="17">7.90736e-03</frequency>
+      <frequency allele="18">1.53719e-01</frequency>
+      <frequency allele="19">5.68861e-02</frequency>
+    </origin>
+  </marker>
+  <marker>
+    <name>vWA</name>
+    <alleles>14, 15, 16, 17, 18, 19, 20</alleles>
+    <origin name="Entire Database" n="17479">
+      <frequency allele="14">8.32570e-02</frequency>
+      <frequency allele="15">1.07872e-01</frequency>
+      <frequency allele="16">2.34485e-01</frequency>
+      <frequency allele="17">1.12517e-01</frequency>
+      <frequency allele="18">2.17498e-01</frequency>
+      <frequency allele="19">9.17665e-02</frequency>
+      <frequency allele="20">1.52605e-01</frequency>
+    </origin>
+    <origin name="Europe" n="9001">
+      <frequency allele="14">1.58198e-01</frequency>
+      <frequency allele="15">1.00196e-01</frequency>
+      <frequency allele="16">2.35203e-01</frequency>
+      <frequency allele="17">1.96570e-01</frequency>
+      <frequency allele="18">2.73959e-01</frequency>
+      <frequency allele="19">9.66733e-03</frequency>
+      <frequency allele="20">2.62057e-02</frequency>
+    </origin>
+    <origin name="AUSTRIA" n="1223">
+      <frequency allele="14">3.52918e-01</frequency>
+      <frequency allele="15">4.04617e-02</frequency>
+      <frequency allele="16">1.49354e-01</frequency>
+      <frequency allele="17">3.73204e-02</frequency>
+      <frequency allele="18">1.83368e-01</frequency>
+      <frequency allele="19">2.72659e-02</frequency>
+      <frequency allele="20">2.09311e-01</frequency>
+    </origin>
+  </marker>
+  <marker>
+    <name>FGA</name>
+    <alleles>19, 20, 21, 22, 23, 24, 25, 26</alleles>
+    <origin name="Entire Database" n="17479">
+      <frequency allele="19">1.57160e-01</frequency>
+      <frequency allele="20">1.90240e-01</frequency>
+      <frequency allele="21">1.75941e-01</frequency>
+      <frequency allele="22">1.39787e-02</frequency>
+      <frequency allele="23">2.31257e-02</frequency>
+      <frequency allele="24">1.62314e-01</frequency>
+      <frequency allele="25">2.64044e-02</frequency>
+      <frequency allele="26">2.50835e-01</frequency>
+    </origin>
+    <origin name="Europe" n="9001">
+      <frequency allele="19">1.80250e-01</frequency>
+      <frequency allele="20">8.13102e-02</frequency>
+      <frequency allele="21">1.16739e-01</frequency>
+      <frequency allele="22">7.57361e-02</frequency>
+      <frequency allele="23">1.72037e-01</frequency>
+      <frequency allele="24">1.37494e-01</frequency>
+      <frequency allele="25">1.42837e-02</frequency>
+      <frequency allele="26">2.22149e-01</frequency>
+    </origin>
+    <origin name="AUSTRIA" n="1223">
+      <frequency allele="19">1.19042e-01</frequency>
+      <frequency allele="20">2.51484e-01</frequency>
+      <frequency allele="21">2.37992e-01</frequency>
+      <frequency allele="22">6.69843e-02</frequency>
+      <frequency allele="23">6.83519e-02</frequency>
+      <frequency allele="24">7.98879e-02</frequency>
+      <frequency allele="25">1.63847e-01</frequency>
+      <frequency allele="26">1.24098e-02</frequency>
+    </origin>
+  </marker>
+  <marker>
+    <name>TH01</name>
+    <alleles>5, 6, 7, 8, 9, 9.3, 10</alleles>
+    <origin name="Entire Database" n="17479">
+      <frequency allele="5">2.10719e-01</frequency>
+      <frequency allele="6">5.71222e-02</frequency>
+      <frequency allele="7">1.10885e-01</frequency>
+      <frequency allele="8">9.34080e-02</frequency>
+      <frequency allele="9">2.55804e-02</frequency>
+      <frequency allele="9.3">1.82624e-01</frequency>
+      <frequency allele="10">3.19662e-01</frequency>
+    </origin>
+    <origin name="AUSTRIA" n="1223">
+      <frequency allele="5">2.59646e-01</frequency>
+      <frequency allele="6">8.33473e-02</frequency>
+      <frequency allele="7">2.67995e-01</frequency>
+      <frequency allele="8">1.35463e-01</frequency>
+      <frequency allele="9">6.49725e-02</frequency>
+      <frequency allele="9.3">5.56788e-02</frequency>
+      <frequency allele="10">1.32897e-01</frequency>
+    </origin>
+  </marker>
+  <marker>
+    <name>D22S1045</name>
+    <alleles>11, 12, 13, 14, 15, 16, 17</alleles>
+  </marker>
+</frequencies>';
+
 func near(actual as float, expected as float) {
     testing.assertTrue(math.abs($actual - $expected) < TOL);
 }
@@ -152,7 +292,7 @@ func testMissingSampleSizeBecomesZero() {
 # --- the bundled sample -----------------------------------------------------
 
 func testBundledSampleExportParses() {
-    def t as Table init parse(fs.readString("testdata/frequencies.xml"));
+    def t as Table init parse(SAMPLE);
     testing.assertEqual(populations($t), ["Entire Database", "Europe", "AUSTRIA"]);
     # Europe is deliberately missing TH01, the whole database is not.
     testing.assertEqual(len(loci($t, "Entire Database")), 4);
@@ -387,4 +527,15 @@ func misreadTable() {
 
 func testMisreadTableIsRejectedByTheGenericType() {
     testing.assertThrows("misreadTable", "forensicgenetics");
+}
+
+# --- the inline fixture -------------------------------------------------------
+
+# Run from the deck root, the inline copy must equal the file the example and the
+# docs use; elsewhere (an installed deck) there is no file to compare against.
+func testSampleMatchesTestdata() {
+    if (not fs.isFile("testdata/frequencies.xml")) {
+        return;
+    }
+    testing.assertEqual(SAMPLE + "\n", fs.readString("testdata/frequencies.xml"));
 }
