@@ -111,6 +111,10 @@ func where(marker as string, population as string) {
 # attribute names are case-sensitive; the lookup folds case so a re-cased export
 # still reads.
 func attrOf(e as xml.Value, want as string) {
+    # the export spells every attribute in lower case; scan only otherwise
+    if (xml.hasAttr($e, $want)) {
+        return xml.attr($e, $want);
+    }
     for (def a in xml.attrs($e)) {
         if (strings.lower($a) == $want) {
             return xml.attr($e, $a);
@@ -266,14 +270,14 @@ export func parse(doc as string) {
                     frequencies: {}
                 };
             }
-            def p as Population init $out.byPopulation[$o.population];
-            if (maps.has($p.frequencies, $m.name)) {
+            # written through the chain: copying the Population out and back
+            # copies every locus read so far
+            if (maps.has($out.byPopulation[$o.population].frequencies, $m.name)) {
                 fail("duplicate locus '" + $m.name + "' for population '" +
                     $o.population + "'");
             }
-            $p.frequencies[$m.name] = $o.freqs;
-            $p.counts[$m.name] = $o.n;
-            $out.byPopulation[$o.population] = $p;
+            $out.byPopulation[$o.population].frequencies[$m.name] = $o.freqs;
+            $out.byPopulation[$o.population].counts[$m.name] = $o.n;
         }
     }
     if (len(maps.keys($out.byPopulation)) == 0) {
