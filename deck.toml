@@ -1,6 +1,6 @@
 [package]
 name = "@deckyard/strider"
-version = "0.1.0"
+version = "0.2.0-dev"
 description = "Reader for STRidER-style STR allele-frequency tables in XML, converting them into the generic @deckyard/forensicgenetics FrequencyDb."
 license = "LGPL-3.0-only"
 authors = ["mplx <mplx@jennifer-lang.dev>"]
