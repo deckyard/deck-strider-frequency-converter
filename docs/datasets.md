@@ -35,6 +35,11 @@ def pooled as forensics.FrequencyDb init forensics.combineFrequencies(
 Only loci that every input carries are pooled. The result describes one merged
 population; use it for a genuinely admixed reference group.
 
+Every input needs a stated `N` at every pooled locus. An export that omits `n`
+reads as `0` (`strider.sampleSize` shows it); forensicgenetics 0.3.0 weights
+that population by `2N = 0` and silently leaves it out of the pool, and newer
+releases reject it.
+
 ### Uncertain donor: the law of total probability
 
 For "German or Austrian":

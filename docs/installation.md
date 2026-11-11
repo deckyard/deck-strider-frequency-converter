@@ -1,6 +1,6 @@
 # Installing the deck
 
-Requires Jennifer 0.25.0 or newer and `@deckyard/forensicgenetics`.
+Requires Jennifer 0.26.0 or newer and `@deckyard/forensicgenetics`.
 
 ## With jvc
 

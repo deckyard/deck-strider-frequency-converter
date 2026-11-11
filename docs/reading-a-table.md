@@ -56,16 +56,20 @@ complaint; only this check catches it.
 
 Use the bulk sum accessors, not a loop over `frequencySum`. A `Table` is a
 value, so each accessor call copies the whole export, every population
-included. Over a real download, the same 704 sums cost:
+included. On a synthetic export of the real one's shape (45 loci, 33
+populations, 704 locus-by-population cells, 0.58 MB; median of five runs,
+Ryzen 7 5800X), the same 704 sums cost:
 
 | Form | `Table` copies | ms |
 | --- | ---: | ---: |
-| `frequencySum` per locus | 704 | 1379 |
-| `frequencySums` per population | 33 | 100 |
-| `allFrequencySums` once | 1 | 48 |
+| `frequencySum` per locus | 704 | 80 |
+| `frequencySums` per population | 33 | 19 |
+| `allFrequencySums` once | 1 | 21 |
 
-`allFrequencySums($t)` audits the whole export, `frequencySums` the population
-you will compute with, and `frequencySum` a single locus.
+The two bulk forms cost the same; pick by scope. `allFrequencySums($t)` audits
+the whole export, `frequencySums` the population you will compute with, and
+`frequencySum` a single locus. On the same export `parse` takes 174 ms and
+`toFrequencyDb` 3 ms.
 
 `load` parses and converts in one call:
 
@@ -101,12 +105,14 @@ illustrative):
 | --- | --- |
 | locus name | text of the `<name>` child element of `<marker>` |
 | population | `name` attribute of `<origin>` |
-| `N` | `n` attribute of `<origin>`, `0` if absent |
-| allele label | `allele` attribute of `<frequency>`, kept as text (`9.3` and `9` are distinct) |
-| frequency | text of `<frequency>`, in scientific notation |
+| `N` | `n` attribute of `<origin>`, unsigned decimal digits, `0` if absent |
+| allele label | `allele` attribute of `<frequency>`, kept as text (`9.3` and `9` are distinct); two repeat counts of equal value (`15`, `15.0`) in one origin are a duplicate |
+| frequency | text of `<frequency>`, unsigned decimal with an optional exponent (the export writes `1.35127e-01`); no child elements |
 | `Table.created`, `Table.validity` | `created_timestamp` and `validity` on the root element |
 
 Tag and attribute names match in any case, and markers are found at any depth.
+Locus names compare case-insensitively within a population (`TH01` and `th01`
+are one locus, a duplicate) and are kept as written.
 The `<alleles>` list is ignored. A marker with no `<origin>` is a locus typed
 in no population; it contributes nothing. The real export has one.
 

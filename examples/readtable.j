@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.25.0
+# pragma-jennifer-version: >=0.26.0
 
 # Read a STRidER export, check it, and convert one population into the generic
 # frequency database the estimators take.
@@ -74,14 +74,14 @@ io.printf("populations: %d\n\n", len($pops));
 def bad as int init 0;
 # A Table is a value, so every accessor call copies the whole export - all 33
 # populations of a real download. This surveys everything, so it takes the
-# whole-export form: one copy for the lot. Looping frequencySums per population
-# is about 2x slower here, and looping the single-locus frequencySum ~30x.
+# whole-export form: one call for the lot. Looping frequencySums per population
+# costs about the same; looping the single-locus frequencySum about 4x as much.
 def all as map of string to map of string to float init strider.allFrequencySums($t);
 for (def p in $all) {
     def sums as map of string to float init $all[$p];
     io.printf("  %s|pad=24 %d|pad=3 loci\n", $p, len($sums));
     for (def locus in $sums) {
-        if (math.abs($sums[$locus] -1.0) > 0.01) {
+        if (math.abs($sums[$locus] - 1.0) > 0.01) {
             io.printf("  SUSPECT %s / %s sums to %f|prec=4\n", $p, $locus, $sums[$locus]);
             $bad = $bad + 1;
         }

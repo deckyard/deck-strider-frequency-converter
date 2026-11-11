@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.25.0
+# pragma-jennifer-version: >=0.26.0
 
 # White-box test overlay for strider.j. Run with `jennifer test strider_test.j`.
 #
@@ -11,6 +11,9 @@
 use testing;
 use math;
 use fs;
+use strings;
+use time;
+use convert;
 
 def const TOL as float init 0.000000001;
 # The bundled fixture publishes six significant figures, exactly as the real
@@ -172,6 +175,50 @@ func doc(body as string) {
         'validity="2026-01-01T00:00:00+01:00">' + $body + '</frequencies>';
 }
 
+# cell builds one origin of locus A in population P with the given `n` attribute
+# text ("" for none) and frequency elements.
+func cell(n as string, frequencies as string) {
+    def stated as string init "";
+    if (len($n) > 0) {
+        $stated = ' n="' + $n + '"';
+    }
+    return doc('<marker><name>A</name><origin name="P"' + $stated + '>' + $frequencies +
+        '</origin></marker>');
+}
+
+func freq(allele as string, value as string) {
+    return '<frequency allele="' + $allele + '">' + $value + '</frequency>';
+}
+
+# synthetic builds `loci` markers L0.. for population P, each with `alleles`
+# alleles of frequency 0.01, wrapped in `depth` levels of <a>.
+func synthetic(loci as int, alleles as int, depth as int) {
+    def row as string init "";
+    for (def a in 0..$alleles) {
+        $row = $row + freq(convert.toString($a), "1.0e-2");
+    }
+    def body as string init "";
+    for (def i in 0..$loci) {
+        $body = $body + '<marker><name>L' + convert.toString($i) + '</name>' +
+            '<origin name="P" n="10">' + $row + '</origin></marker>';
+    }
+    return doc(strings.repeat("<a>", $depth) + $body + strings.repeat("</a>", $depth));
+}
+
+func elapsedMs(startedAt as time.Time, endedAt as time.Time) {
+    return (time.unixNanos($endedAt) - time.unixNanos($startedAt)) / 1000000.0;
+}
+
+# messageOf returns the message `parse(d)` throws, or "" if it does not throw.
+func messageOf(d as string) {
+    try {
+        parse($d);
+    } catch (e) {
+        return $e.message;
+    }
+    return "";
+}
+
 # --- the published shape ----------------------------------------------------
 
 func testCanonicalExportParses() {
@@ -254,6 +301,35 @@ func testMarkersAreFoundAtAnyDepth() {
     testing.assertEqual(loci($t, "P"), ["A"]);
 }
 
+func testMarkerOrderIsDocumentOrderAtAnyDepth() {
+    # Pre-order: a marker nested deeper but earlier in the text comes first.
+    def t as Table init parse(doc('<g><h><marker><name>A</name>' +
+        '<origin name="P" n="1"><frequency allele="1">1.0e0</frequency></origin></marker></h>' +
+        '<marker><name>B</name>' +
+        '<origin name="P" n="1"><frequency allele="1">1.0e0</frequency></origin></marker></g>' +
+        '<marker><name>C</name>' +
+        '<origin name="P" n="1"><frequency allele="1">1.0e0</frequency></origin></marker>' +
+        '<g><g><g><marker><name>D</name>' +
+        '<origin name="P" n="1"><frequency allele="1">1.0e0</frequency></origin></marker>' +
+        '</g></g></g>'));
+    testing.assertEqual(loci($t, "P"), ["A", "B", "C", "D"]);
+}
+
+func testDeepNestingCostsNoMoreThanFlat() {
+    # 990 wrapper levels (xml.decode allows 1000). The old recursive walk copied
+    # every Marker once per enclosing level: 20 loci took ~25x the flat parse.
+    # The iterative walk visits each element once, so depth adds ~990 handles.
+    def flat as string init synthetic(20, 10, 0);
+    def deep as string init synthetic(20, 10, 990);
+    def t0 as time.Time init time.now();
+    def a as Table init parse($flat);
+    def t1 as time.Time init time.now();
+    def b as Table init parse($deep);
+    def t2 as time.Time init time.now();
+    testing.assertEqual($b.byPopulation, $a.byPopulation);
+    testing.assertTrue(elapsedMs($t1, $t2) < 4.0 * elapsedMs($t0, $t1) + 30.0);
+}
+
 func testScientificNotationIsRead() {
     # Every frequency in the real export is written this way.
     def t as Table init parse(doc('<marker><name>A</name>' +
@@ -281,6 +357,90 @@ func testTagsAndAttributesFoldCase() {
         '</Origin></Marker>'));
     testing.assertEqual(sampleSize($t, "P", "A"), 300);
     near($t.byPopulation["P"].frequencies["A"]["1"], 1.0);
+}
+
+func testPlainNumberSpellingsAreRead() {
+    # Each value is its literal: 5E-1 = 0.5, 2.5e+0 = 2.5 (rejected later, on
+    # conversion, not here), 1 = 1.0; n "0042" is 42.
+    def t as Table init parse(cell(
+        "0042",
+        freq("1", "5E-1") + freq("2", "2.5e+0") +
+            freq("3", "1") + freq("4", "1.35127e-01")));
+    def row as map of string to float init $t.byPopulation["P"].frequencies["A"];
+    testing.assertEqual($row["1"], 0.5);
+    testing.assertEqual($row["2"], 2.5);
+    testing.assertEqual($row["3"], 1.0);
+    testing.assertEqual($row["4"], 0.135127);
+    testing.assertEqual(sampleSize($t, "P", "A"), 42);
+}
+
+func testNonNumericFrequencyIsARuntimeError() {
+    # convert.toFloat alone accepted the hex, underscore and signed forms (0x1p-1
+    # read as 0.5); the frequency must be plain unsigned decimal.
+    for (def v in [
+        "abc",
+        "NaN",
+        "Inf",
+        "0x1p-1",
+        "0.5_0",
+        "+0.5",
+        "-0.5",
+        "-0.0",
+        "0,5",
+        ".5",
+        "5.",
+        "1e",
+        "0.5 0.5"
+    ]) {
+        testing.assertThrowsWith("parse", [cell("10", freq("1", $v))], "runtime");
+    }
+    # text in a child element was dropped by xml.text: "0.5<b>9</b>" read as 0.5
+    testing.assertThrowsWith("parse", [cell("10", freq("1", "0.5<b>9</b>"))], "runtime");
+    # a comment is not content: "5<!--x-->e-1" is the text "5e-1"
+    near(parse(cell("10", freq("1", "5<!--x-->e-1"))).byPopulation["P"].frequencies["A"]["1"], 0.5);
+}
+
+func testNonNumericSampleSizeIsARuntimeError() {
+    # "+500" used to read as 500 and "-5" as -5; n is unsigned decimal digits.
+    for (def n in ["abc", "+500", "-5", "500.0", "1e3", "0x10", "1_000", "5 0"]) {
+        testing.assertThrowsWith("parse", [cell($n, freq("1", "1.0e0"))], "runtime");
+    }
+}
+
+func testNumericallyEqualAllelesAreDuplicates() {
+    # "15" and "15.0" are one repeat count; read as two alleles they split its
+    # frequency and a genotype written either way finds only half of it.
+    for (def pair in [["15", "15.0"], ["9.3", "9.30"], ["9", "09"], ["10", "10.000"]]) {
+        def d as string init cell("10", freq($pair[0], "5.0e-1") + freq($pair[1], "5.0e-1"));
+        testing.assertThrowsWith("parse", [$d], "strider");
+        def msg as string init messageOf($d);
+        testing.assertContains($msg, "'" + $pair[0] + "'");
+        testing.assertContains($msg, "'" + $pair[1] + "'");
+    }
+    # distinct values, and non-numeric labels, are compared as text
+    def t as Table init parse(cell(
+        "10",
+        freq("9", "2.0e-1") + freq("9.3", "2.0e-1") +
+            freq("90", "2.0e-1") + freq("OL", "2.0e-1") + freq("ol", "2.0e-1")));
+    testing.assertEqual(
+        maps.keys($t.byPopulation["P"].frequencies["A"]),
+        ["9", "9.3", "90", "OL", "ol"]);
+}
+
+func testLocusNamesDifferingInCaseAreDuplicates() {
+    def d as string init doc('<marker><name>TH01</name>' +
+        '<origin name="P" n="1"><frequency allele="1">1.0e0</frequency></origin></marker>' +
+        '<marker><name>th01</name>' +
+        '<origin name="P" n="1"><frequency allele="2">1.0e0</frequency></origin></marker>');
+    testing.assertThrowsWith("parse", [$d], "strider");
+    testing.assertContains(messageOf($d), "'TH01'");
+    # one spelling per population is fine, and is kept as written
+    def t as Table init parse(doc('<marker><name>TH01</name>' +
+        '<origin name="P" n="1"><frequency allele="1">1.0e0</frequency></origin></marker>' +
+        '<marker><name>th01</name>' +
+        '<origin name="Q" n="1"><frequency allele="1">1.0e0</frequency></origin></marker>'));
+    testing.assertEqual(loci($t, "P"), ["TH01"]);
+    testing.assertEqual(loci($t, "Q"), ["th01"]);
 }
 
 func testMissingSampleSizeBecomesZero() {
@@ -321,8 +481,8 @@ func testFrequencySumsMatchesThePerLocusForm() {
     # agree with the single-locus form exactly, not merely closely.
     def sums as map of string to float init frequencySums($t, "P");
     testing.assertEqual(maps.keys($sums), ["A", "B"]);
-    near($sums["A"], frequencySum($t, "P", "A"));
-    near($sums["B"], frequencySum($t, "P", "B"));
+    testing.assertEqual($sums["A"], frequencySum($t, "P", "A"));
+    testing.assertEqual($sums["B"], frequencySum($t, "P", "B"));
     near($sums["A"], 1.0);
 
     # Scoped to the population asked for: Q carries B only.
@@ -348,7 +508,7 @@ func testAllFrequencySumsCoversEveryPopulation() {
         def one as map of string to float init frequencySums($t, $p);
         testing.assertEqual(maps.keys($all[$p]), maps.keys($one));
         for (def locus in $one) {
-            near($all[$p][$locus], $one[$locus]);
+            testing.assertEqual($all[$p][$locus], $one[$locus]);
         }
     }
     # Q is typed at A only, P at both.
@@ -436,13 +596,8 @@ func testMalformedExportsAreRejected() {
 }
 
 func testMalformedXmlPropagates() {
-    def caught as string init "";
-    try {
-        malformedXml();
-    } catch (e) {
-        $caught = $e.kind;
-    }
-    testing.assertTrue(len($caught) > 0);
+    # parse documents kind "runtime" here: xml.decode's error is not wrapped
+    testing.assertThrows("malformedXml", "runtime");
 }
 
 func unknownPopulation() {
@@ -503,6 +658,24 @@ func testEachPopulationConvertsSeparately() {
     near(forensics.alleleFrequency($wide, "TH01", "6"), 0.4);
     near(forensics.alleleFrequency($at, "TH01", "6"), 0.3);
     testing.assertEqual($at.name, "STRidER AT");
+}
+
+func testToFrequencyDbIsLinearInLoci() {
+    # Looping withLocus over the growing database copied every locus added so
+    # far: 32x the loci took ~1000x the time. Linear is ~32x; 64x allows noise.
+    def small as Table init parse(synthetic(25, 2, 0));
+    def large as Table init parse(synthetic(800, 2, 0));
+    def t0 as time.Time init time.now();
+    def a as forensics.FrequencyDb init toFrequencyDb($small, "P", "");
+    def t1 as time.Time init time.now();
+    def b as forensics.FrequencyDb init toFrequencyDb($large, "P", "");
+    def t2 as time.Time init time.now();
+    testing.assertEqual(len(forensics.loci($a)), 25);
+    testing.assertEqual(len(forensics.loci($b)), 800);
+    testing.assertEqual(forensics.loci($b)[799], "L799");
+    testing.assertEqual($b.loci["L799"].alleles["1"], 0.01);
+    testing.assertEqual(forensics.sampleSize($b, "L799"), 10);
+    testing.assertTrue(elapsedMs($t1, $t2) < 64.0 * elapsedMs($t0, $t1) + 50.0);
 }
 
 func testDatasetLabelFallsBackToThePopulation() {

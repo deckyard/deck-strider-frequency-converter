@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.25.0
+# pragma-jennifer-version: >=0.26.0
 
 /**
  * Reader for STRidER autosomal-STR allele-frequency exports in XML.
@@ -50,7 +50,10 @@
 use xml;
 use strings;
 use maps;
+use lists;
 use convert;
+use regex;
+use decimal;
 
 import "@deckyard/forensicgenetics/" as forensics;
 
@@ -80,6 +83,20 @@ export def struct Table {
     byPopulation as map of string to Population
 };
 
+# Accepted spellings: a frequency is unsigned decimal with an optional exponent
+# (the export writes "1.35127e-01"); `n` is unsigned decimal digits; an allele
+# label of the repeat-count shape ("15", "9.3") is compared by value.
+def const FREQUENCY_PATTERN as string init '^[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$';
+def const COUNT_PATTERN as string init '^[0-9]+$';
+def const REPEAT_PATTERN as string init '^[0-9]+(\.[0-9]+)?$';
+# One origin's frequencies joined with ",", checked in one match; and a joined
+# label list holding a repeat count that another spelling could equal in value: a
+# leading zero or a fraction ending in 0. A list without one has no two labels of
+# equal value that differ as text.
+def const FREQUENCIES_PATTERN as string init
+    '^[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?(,[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?)*$';
+def const RESPELLED_PATTERN as string init '(^|,)(0[0-9]+(\.[0-9]+)?|[0-9]+\.[0-9]*0)(,|$)';
+
 # Origin is one population's block inside one locus, before the population-major
 # fold; Marker is one locus with all of its blocks.
 def struct Origin {
@@ -97,6 +114,13 @@ def struct Marker {
 
 func fail(msg as string) {
     throw Error{kind: "strider", message: $msg, file: "", line: 0, col: 0};
+}
+
+# notNumber rejects a frequency or `n` that is not a plain number. It throws kind
+# "runtime", the kind `convert` throws for unparseable text, which is what the
+# public error table has always promised for this case.
+func notNumber(msg as string) {
+    throw Error{kind: "runtime", message: $msg, file: "", line: 0, col: 0};
 }
 
 # where builds the "'locus' / 'population'" suffix every read error carries, so
@@ -144,37 +168,101 @@ func markerName(e as xml.Value) {
     return "";
 }
 
+# checkFrequencies rejects any published frequency that is not a plain decimal.
+# The common case, every value sound, costs one match for the whole origin; the
+# comma count catches a value that itself contains the separator.
+func checkFrequencies(published as map of string to string, where as string) {
+    if (len($published) == 0) {
+        return;
+    }
+    def joined as string init strings.join(maps.values($published), ",");
+    if (regex.matches(FREQUENCIES_PATTERN, $joined) and
+        strings.count($joined, ",") == len($published) - 1) {
+        return;
+    }
+    for (def allele in $published) {
+        if (not regex.matches(FREQUENCY_PATTERN, $published[$allele])) {
+            notNumber("allele '" + $allele + "' frequency '" + $published[$allele] +
+                "' is not a plain decimal number" + $where);
+        }
+    }
+}
+
+# checkRepeats rejects two numeric labels of equal value ("15" and "15.0"),
+# compared exactly as decimals. The labels are already distinct as text, and two
+# distinct canonical spellings differ in value, so the per-label comparison runs
+# only when RESPELLED_PATTERN finds a non-canonical one.
+func checkRepeats(labels as list of string, where as string) {
+    if (not regex.matches(RESPELLED_PATTERN, strings.join($labels, ","))) {
+        return;
+    }
+    # repeat count, normalised decimal text -> the first label written with it
+    def byCount as map of string to string init {};
+    for (def label in $labels) {
+        if (not regex.matches(REPEAT_PATTERN, $label)) {
+            continue;
+        }
+        def count as string init decimal.toString(decimal.normalize(decimal.from($label)));
+        if (maps.has($byCount, $count)) {
+            fail("duplicate allele '" + $label + "' (same repeat count as '" +
+                $byCount[$count] + "')" + $where);
+        }
+        $byCount[$count] = $label;
+    }
+}
+
+# readCount reads an origin's `n`: 0 when absent, else unsigned decimal digits.
+func readCount(e as xml.Value, where as string) {
+    def stated as string init strings.trim(attrOf($e, "n"));
+    if (len($stated) == 0) {
+        return 0;
+    }
+    if (not regex.matches(COUNT_PATTERN, $stated)) {
+        notNumber("n '" + $stated + "' is not a non-negative integer" + $where);
+    }
+    return convert.toInt($stated);
+}
+
 # readOrigin turns one `<origin>` into a population's row for this locus.
 # Duplicate allele labels are an error rather than a silent last-wins, because a
 # block that lists an allele twice is one whose frequencies no longer sum
-# sensibly.
+# sensibly. Two numeric labels of equal value ("15" and "15.0") are one repeat
+# count, so they are a duplicate too; labels are kept as written.
 func readOrigin(e as xml.Value, marker as string) {
     def population as string init strings.trim(attrOf($e, "name"));
     if (len($population) == 0) {
         fail("an origin in '" + $marker + "' carries no name attribute");
     }
-    def n as int init 0;
-    def stated as string init strings.trim(attrOf($e, "n"));
-    if (len($stated) > 0) {
-        $n = convert.toInt($stated);
-    }
-    def freqs as map of string to float init {};
+    def at as string init where($marker, $population);
+    def n as int init readCount($e, $at);
+    # allele label -> frequency text, in document order
+    def published as map of string to string init {};
     for (def c in xml.children($e)) {
-        if (isTag($c, "frequency")) {
-            def allele as string init strings.trim(attrOf($c, "allele"));
-            if (len($allele) == 0) {
-                fail("a frequency carries no allele attribute" + where($marker, $population));
-            }
-            if (maps.has($freqs, $allele)) {
-                fail("duplicate allele '" + $allele + "'" + where($marker, $population));
-            }
-            def published as string init strings.trim(xml.text($c));
-            if (len($published) == 0) {
-                fail("allele '" + $allele + "' carries no frequency" +
-                    where($marker, $population));
-            }
-            $freqs[$allele] = convert.toFloat($published);
+        if (not isTag($c, "frequency")) {
+            continue;
         }
+        def allele as string init strings.trim(attrOf($c, "allele"));
+        if (len($allele) == 0) {
+            fail("a frequency carries no allele attribute" + $at);
+        }
+        if (maps.has($published, $allele)) {
+            fail("duplicate allele '" + $allele + "'" + $at);
+        }
+        # xml.text reads direct text only; a nested element's text would be lost
+        if (len(xml.children($c)) > 0) {
+            notNumber("allele '" + $allele + "' frequency contains child elements" + $at);
+        }
+        def value as string init strings.trim(xml.text($c));
+        if (len($value) == 0) {
+            fail("allele '" + $allele + "' carries no frequency" + $at);
+        }
+        $published[$allele] = $value;
+    }
+    checkRepeats(maps.keys($published), $at);
+    checkFrequencies($published, $at);
+    def freqs as map of string to float init {};
+    for (def allele in $published) {
+        $freqs[$allele] = convert.toFloat($published[$allele]);
     }
     return Origin{population: $population, n: $n, freqs: $freqs};
 }
@@ -197,26 +285,44 @@ func readMarker(e as xml.Value) {
     return Marker{name: $name, origins: $origins};
 }
 
-# readMarkers recurses depth-first and returns every locus found beneath `e`, so
-# the reader does not depend on how deeply the export nests its markers.
+# readMarkers returns every locus found beneath `e` in document order (depth-first,
+# pre-order), so the reader does not depend on how deeply the export nests its
+# markers. It does not descend into a `<marker>`.
 #
-# It returns its findings rather than accumulating into a table passed down the
-# recursion. Threading the table through would copy every locus read so far on
-# each call, which is quadratic in the size of the document.
+# The walk is iterative, with an explicit stack of handles, and appends each
+# Marker once to one list. A recursive walk that returned a list per element
+# re-copied every Marker below it at each enclosing level: cost proportional to
+# document size times nesting depth.
 func readMarkers(e as xml.Value) {
     def out as list of Marker init [];
-    if (isTag($e, "marker")) {
-        $out[] = readMarker($e);
-        return $out;
-    }
-    for (def c in xml.children($e)) {
-        if (xml.typeOf($c) == "element") {
-            for (def m in readMarkers($c)) {
-                $out[] = $m;
+    def stack as list of xml.Value init [$e];
+    while (len($stack) > 0) {
+        def top as int init len($stack) - 1;
+        def node as xml.Value init $stack[$top];
+        $stack = lists.pop($stack);
+        if (isTag($node, "marker")) {
+            $out[] = readMarker($node);
+        } else {
+            # pushed last-first, so the first child is popped next
+            def kids as list of xml.Value init xml.children($node);
+            def i as int init len($kids) - 1;
+            while ($i >= 0) {
+                $stack[] = $kids[$i];
+                $i = $i - 1;
             }
         }
     }
     return $out;
+}
+
+# rejectDuplicateLocus rejects a second `<marker>` for a locus a population already has,
+# naming the first spelling when the two differ only in case.
+func rejectDuplicateLocus(name as string, first as string, population as string) {
+    def also as string init "";
+    if ($first != $name) {
+        $also = " (already read as '" + $first + "')";
+    }
+    fail("duplicate locus '" + $name + "' for population '" + $population + "'" + $also);
 }
 
 # sumsFor totals every locus of one already-extracted population. Both public sum
@@ -243,12 +349,19 @@ func sumsFor(p as Population) {
  * found at any depth. A marker with no `<origin>` contributes nothing.
  * Frequencies are kept as published. A document with no markers is rejected:
  * it is almost always the wrong file.
+ *
+ * A frequency must be unsigned decimal with an optional exponent (`1.35127e-01`,
+ * `0.5`); `n` must be unsigned decimal digits. Allele labels that are repeat
+ * counts compare by value, so `15` and `15.0` in one origin are a duplicate;
+ * locus names compare case-insensitively, so `TH01` and `th01` for one
+ * population are a duplicate. Labels and names are kept as written.
  * @param doc {string} XML document text
  * @return {Table} every population the export describes
  * @throws {Error} kind "strider" on a document with no markers or no
  *   population data, a marker with no `<name>`, an origin with no `name`, a
  *   frequency with no `allele` or no value, or a duplicated allele or locus;
- *   kind "runtime" on malformed XML or a non-numeric frequency or `n`
+ *   kind "runtime" on malformed XML, a frequency that is not unsigned decimal
+ *   (or holds a child element), or an `n` that is not unsigned digits
  */
 export func parse(doc as string) {
     def root as xml.Value init xml.decode($doc);
@@ -261,7 +374,11 @@ export func parse(doc as string) {
         validity: strings.trim(attrOf($root, "validity")),
         byPopulation: {}
     };
+    # population -> lower-cased locus -> locus as first written: "TH01" and
+    # "th01" are one locus, so a second spelling is a duplicate
+    def seen as map of string to map of string to string init {};
     for (def m in $found) {
+        def key as string init strings.lower($m.name);
         for (def o in $m.origins) {
             if (not maps.has($out.byPopulation, $o.population)) {
                 $out.byPopulation[$o.population] = Population{
@@ -269,13 +386,14 @@ export func parse(doc as string) {
                     counts: {},
                     frequencies: {}
                 };
+                $seen[$o.population] = {};
             }
+            if (maps.has($seen[$o.population], $key)) {
+                rejectDuplicateLocus($m.name, $seen[$o.population][$key], $o.population);
+            }
+            $seen[$o.population][$key] = $m.name;
             # written through the chain: copying the Population out and back
             # copies every locus read so far
-            if (maps.has($out.byPopulation[$o.population].frequencies, $m.name)) {
-                fail("duplicate locus '" + $m.name + "' for population '" +
-                    $o.population + "'");
-            }
             $out.byPopulation[$o.population].frequencies[$m.name] = $o.freqs;
             $out.byPopulation[$o.population].counts[$m.name] = $o.n;
         }
@@ -375,10 +493,10 @@ export func frequencySums(t as Table, population as string) {
 }
 
 /**
- * Sum every locus in every population, copying the `Table` once. Over a real
- * download this is about twice as fast as looping `frequencySums` over
- * `populations` and about 30x faster than looping `frequencySum`. Use it to
- * audit a fresh download.
+ * Sum every locus in every population, copying the `Table` once. On a
+ * 704-cell export it takes about as long as looping `frequencySums` over
+ * `populations` (21 ms against 19 ms) and a quarter of the time of looping
+ * `frequencySum` (80 ms). Use it to audit a fresh download.
  * @param t {Table} parsed export
  * @return {map of string to map of string to float} population -> locus -> sum
  *   of its published frequencies, both in document order; each should be ~1.0
@@ -397,6 +515,10 @@ export func allFrequencySums(t as Table) {
  * Frequencies and `N` cross over as published; `forensics.alleleFrequency`
  * applies the 5/(2N) floor on read. The label becomes `FrequencyDb.name`, so a
  * result records which dataset produced it.
+ *
+ * Linear in the population's loci: 45 loci take ~3 ms, 1600 ~100 ms.
+ * `forensics.withLocus` copies the whole database it extends, so each locus is
+ * validated by it on an empty database and moved into the result.
  * @param t {Table} parsed export
  * @param population {string} population label to convert
  * @param name {string} dataset label, or "" for the population's own label
@@ -413,7 +535,14 @@ export func toFrequencyDb(t as Table, population as string, name as string) {
     }
     def out as forensics.FrequencyDb init forensics.db($label);
     for (def locus in $p.frequencies) {
-        $out = forensics.withLocus($out, $locus, $p.counts[$locus], $p.frequencies[$locus]);
+        # withLocus validates and builds the entry; it runs on an empty database,
+        # because on $out it would copy every locus added so far (quadratic)
+        def one as forensics.FrequencyDb init forensics.withLocus(
+            forensics.db($label),
+            $locus,
+            $p.counts[$locus],
+            $p.frequencies[$locus]);
+        $out.loci[$locus] = $one.loci[$locus];
     }
     return $out;
 }

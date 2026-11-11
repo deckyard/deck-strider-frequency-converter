@@ -16,6 +16,14 @@ published use is a question for the rights holder.
 so a rare or unobserved allele has nothing holding it off zero. Check
 `forensics.sampleSize` if the export's `N` is in doubt.
 
+Two consequences. Pooling needs a stated `N`: `forensics.combineFrequencies`
+weights by `2N`, so in forensicgenetics 0.3.0 a population with `n = 0` is
+silently dropped from the pool, and newer releases reject it. And without the
+floor a published frequency near `1e-155` gives a match probability near
+`1e-310`, and `forensics.matchLikelihoodRatio` (`1 / p`) throws a float-overflow
+`runtime` error; use `forensics.log10RandomMatchProbability` (log10 LR is its
+negation) for such tables.
+
 **One format.** The deck reads STRidER XML only. Another source needs another
 reader that converges on `forensics.FrequencyDb`.
 
