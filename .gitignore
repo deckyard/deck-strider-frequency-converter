@@ -16,3 +16,4 @@ strider.xml
 .ci-fixtures/
 .jfmt-*.tmp
 .docblocks-*/
+.check-tiny-*/
