@@ -19,3 +19,4 @@
 # The project
 
 - [Limitations](limitations.md)
+- [Design](design.md)
