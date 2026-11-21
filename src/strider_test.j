@@ -10,6 +10,7 @@
 # eye.
 use testing;
 use math;
+use meta;
 use fs;
 use strings;
 use time;
@@ -316,11 +317,16 @@ func testMarkerOrderIsDocumentOrderAtAnyDepth() {
 }
 
 func testDeepNestingCostsNoMoreThanFlat() {
-    # 990 wrapper levels (xml.decode allows 1000). The old recursive walk copied
-    # every Marker once per enclosing level: 20 loci took ~25x the flat parse.
-    # The iterative walk visits each element once, so depth adds ~990 handles.
+    # 990 wrapper levels (xml.decode allows 1000; 64 on jennifer-tiny, so 50
+    # there). The old recursive walk copied every Marker once per enclosing
+    # level: 20 loci took ~25x the flat parse. The iterative walk visits each
+    # element once, so depth adds ~990 handles.
+    def levels as int init 990;
+    if (meta.BUILD == "tinygo") {
+        $levels = 50;
+    }
     def flat as string init synthetic(20, 10, 0);
-    def deep as string init synthetic(20, 10, 990);
+    def deep as string init synthetic(20, 10, $levels);
     def t0 as time.Time init time.now();
     def a as Table init parse($flat);
     def t1 as time.Time init time.now();

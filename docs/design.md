@@ -106,6 +106,8 @@ The deck reports no server status or code, so it has no error struct.
 - Two overlay tests guard the linear cost (deep nesting against a flat
   document, `toFrequencyDb` against a smaller table) by ratio, not absolute
   time.
+- The overlay also runs on `jennifer-tiny-dev`, whose `xml.decode` stops at
+  64 levels: the deep-nesting test wraps 50 levels there instead of 990.
 - A conversion mismatch with forensicgenetics' validation is covered by a test
   that expects kind `"forensicgenetics"`.
 - The reader has been run over one full STRidER download: 45 loci across 33
