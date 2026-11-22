@@ -13,8 +13,8 @@ homepage = "https://github.com/deckyard/deck-strider-frequency-converter"
 manual = "https://deckyard.github.io/deck-strider-frequency-converter/"
 
 [engines]
-jennifer = ">=0.26.0"
-jennifer-tiny = ">=0.26.0"
+jennifer = ">=0.27.0"
+jennifer-tiny = ">=0.27.0"
 
 # The one deck dependency. This reader produces a FrequencyDb, which the
 # forensicgenetics deck defines; the dependency runs one way only - nothing in

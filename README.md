@@ -14,7 +14,7 @@ Manual: **<https://deckyard.github.io/deck-strider-frequency-converter/>**
 
 ## Install
 
-Requires Jennifer 0.26.0 or newer. Neither this deck nor its dependency is in
+Requires Jennifer 0.27.0 or newer. Neither this deck nor its dependency is in
 the public registry yet, so point jvc at this repository; the manifest carries
 the `[sources]` entry for `@deckyard/forensicgenetics`:
 

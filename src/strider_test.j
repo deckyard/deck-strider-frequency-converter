@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.26.0
+# pragma-jennifer-version: >=0.27.0
 
 # White-box test overlay for strider.j. Run with `jennifer test strider_test.j`.
 #
@@ -203,7 +203,7 @@ func synthetic(loci as int, alleles as int, depth as int) {
         $body = $body + '<marker><name>L' + convert.toString($i) + '</name>' +
             '<origin name="P" n="10">' + $row + '</origin></marker>';
     }
-    return doc(strings.repeat("<a>", $depth) + $body + strings.repeat("</a>", $depth));
+    return doc(strings.replicate("<a>", $depth) + $body + strings.replicate("</a>", $depth));
 }
 
 func elapsedMs(startedAt as time.Time, endedAt as time.Time) {
@@ -398,10 +398,10 @@ func testNonNumericFrequencyIsARuntimeError() {
         "1e",
         "0.5 0.5"
     ]) {
-        testing.assertThrowsWith("parse", [cell("10", freq("1", $v))], "runtime");
+        testing.assertThrowsArgs("parse", [cell("10", freq("1", $v))], "runtime");
     }
     # text in a child element was dropped by xml.text: "0.5<b>9</b>" read as 0.5
-    testing.assertThrowsWith("parse", [cell("10", freq("1", "0.5<b>9</b>"))], "runtime");
+    testing.assertThrowsArgs("parse", [cell("10", freq("1", "0.5<b>9</b>"))], "runtime");
     # a comment is not content: "5<!--x-->e-1" is the text "5e-1"
     near(parse(cell("10", freq("1", "5<!--x-->e-1"))).byPopulation["P"].frequencies["A"]["1"], 0.5);
 }
@@ -409,7 +409,7 @@ func testNonNumericFrequencyIsARuntimeError() {
 func testNonNumericSampleSizeIsARuntimeError() {
     # "+500" used to read as 500 and "-5" as -5; n is unsigned decimal digits.
     for (def n in ["abc", "+500", "-5", "500.0", "1e3", "0x10", "1_000", "5 0"]) {
-        testing.assertThrowsWith("parse", [cell($n, freq("1", "1.0e0"))], "runtime");
+        testing.assertThrowsArgs("parse", [cell($n, freq("1", "1.0e0"))], "runtime");
     }
 }
 
@@ -418,7 +418,7 @@ func testNumericallyEqualAllelesAreDuplicates() {
     # frequency and a genotype written either way finds only half of it.
     for (def pair in [["15", "15.0"], ["9.3", "9.30"], ["9", "09"], ["10", "10.000"]]) {
         def d as string init cell("10", freq($pair[0], "5.0e-1") + freq($pair[1], "5.0e-1"));
-        testing.assertThrowsWith("parse", [$d], "strider");
+        testing.assertThrowsArgs("parse", [$d], "strider");
         def msg as string init messageOf($d);
         testing.assertContains($msg, "'" + $pair[0] + "'");
         testing.assertContains($msg, "'" + $pair[1] + "'");
@@ -438,7 +438,7 @@ func testLocusNamesDifferingInCaseAreDuplicates() {
         '<origin name="P" n="1"><frequency allele="1">1.0e0</frequency></origin></marker>' +
         '<marker><name>th01</name>' +
         '<origin name="P" n="1"><frequency allele="2">1.0e0</frequency></origin></marker>');
-    testing.assertThrowsWith("parse", [$d], "strider");
+    testing.assertThrowsArgs("parse", [$d], "strider");
     testing.assertContains(messageOf($d), "'TH01'");
     # one spelling per population is fine, and is kept as written
     def t as Table init parse(doc('<marker><name>TH01</name>' +

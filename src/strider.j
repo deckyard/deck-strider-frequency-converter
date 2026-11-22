@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.26.0
+# pragma-jennifer-version: >=0.27.0
 
 /**
  * Reader for STRidER autosomal-STR allele-frequency exports in XML.
@@ -50,7 +50,6 @@
 use xml;
 use strings;
 use maps;
-use lists;
 use convert;
 use regex;
 use decimal;
@@ -299,7 +298,7 @@ func readMarkers(e as xml.Value) {
     while (len($stack) > 0) {
         def top as int init len($stack) - 1;
         def node as xml.Value init $stack[$top];
-        $stack = lists.pop($stack);
+        $stack = $stack[..len($stack) - 1];
         if (isTag($node, "marker")) {
             $out[] = readMarker($node);
         } else {

@@ -132,7 +132,8 @@ The deck reports no server status or code, so it has no error struct.
 
 ## Dependencies on the interpreter
 
-- Floor `jennifer >=0.26.0`, also declared for `jennifer-tiny`.
+- Floor `jennifer >=0.27.0`, also declared for `jennifer-tiny`: the tests
+  use `strings.replicate` and `testing.assertThrowsArgs`, new in 0.27.0.
 - Built-in libraries `xml` (decode, depth cap), `regex`, `decimal` (exact
   value comparison of repeat counts), `convert`, `strings`, `maps`, `lists`.
 - `@deckyard/forensicgenetics` `>=0.1.0`, vendored from its released tag:
