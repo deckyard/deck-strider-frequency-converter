@@ -359,8 +359,9 @@ func sumsFor(p as Population) {
  * @throws {Error} kind "strider" on a document with no markers or no
  *   population data, a marker with no `<name>`, an origin with no `name`, a
  *   frequency with no `allele` or no value, or a duplicated allele or locus;
- *   kind "runtime" on malformed XML, a frequency that is not unsigned decimal
- *   (or holds a child element), or an `n` that is not unsigned digits
+ *   xml.decode's kind on malformed XML ("xml"; "runtime" before Jennifer
+ *   0.28.0); kind "runtime" on a frequency that is not unsigned decimal (or
+ *   holds a child element), or an `n` that is not unsigned digits
  */
 export func parse(doc as string) {
     def root as xml.Value init xml.decode($doc);
@@ -554,7 +555,7 @@ export func toFrequencyDb(t as Table, population as string, name as string) {
  * @param population {string} population label to convert
  * @param name {string} dataset label, or "" for the population's own label
  * @return {forensics.FrequencyDb} the converted population
- * @throws {Error} kind "strider" or "runtime" when `parse` fails, kind
+ * @throws {Error} kind "strider", "runtime" or "xml" when `parse` fails, kind
  *   "strider" if there is no such population, kind "forensicgenetics" if a
  *   locus fails `FrequencyDb` validation
  */

@@ -20,7 +20,7 @@ Every accessor copies the whole `Table`; see
 | a `<frequency>` with no `allele` attribute, or no value | `strider` | `parse`, `load` |
 | an allele listed twice in one population's locus, as text or as a repeat count of equal value (`15` and `15.0`) | `strider` | `parse`, `load` |
 | a locus listed twice for one population, names compared case-insensitively (`TH01` and `th01`) | `strider` | `parse`, `load` |
-| malformed XML | `runtime` | `parse`, `load` |
+| malformed XML | `xml` (`runtime` before Jennifer 0.28.0) | `parse`, `load` |
 | a frequency that is not unsigned decimal with an optional exponent (`-0.5`, `+0.5`, `0x1p-1`, `0.5_0`, `NaN`, `0,5`), or that contains a child element | `runtime` | `parse`, `load` |
 | an `n` that is not unsigned decimal digits (`-5`, `+500`, `500.0`, `1e3`), or too large for an `int` | `runtime` | `parse`, `load` |
 | unknown population | `strider` | every function taking `population` |

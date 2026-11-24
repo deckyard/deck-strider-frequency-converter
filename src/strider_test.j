@@ -602,8 +602,15 @@ func testMalformedExportsAreRejected() {
 }
 
 func testMalformedXmlPropagates() {
-    # parse documents kind "runtime" here: xml.decode's error is not wrapped
-    testing.assertThrows("malformedXml", "runtime");
+    # xml.decode's error is not wrapped: kind "runtime" before 0.28.0, "xml"
+    # from 0.28.0 on; expect "xml" alone once the floor is 0.28.0
+    def k as string init "";
+    try {
+        malformedXml();
+    } catch (e) {
+        $k = $e.kind;
+    }
+    testing.assertTrue($k == "xml" or $k == "runtime");
 }
 
 func unknownPopulation() {
