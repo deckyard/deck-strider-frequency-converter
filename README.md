@@ -4,7 +4,7 @@
 [![docs](https://github.com/deckyard/deck-strider-frequency-converter/actions/workflows/docs.yml/badge.svg)](https://github.com/deckyard/deck-strider-frequency-converter/actions/workflows/docs.yml)
 [![release](https://img.shields.io/github/v/release/deckyard/deck-strider-frequency-converter)](https://github.com/deckyard/deck-strider-frequency-converter/releases/latest)
 
-Reads a [STRidER](https://strider.online/) STR allele-frequency export in XML,
+Reads a [STRidER™](https://strider.online/) STR allele-frequency export in XML,
 which holds every population at once, and converts the population you choose
 into the `FrequencyDb` that
 [`@deckyard/forensicgenetics`](https://github.com/deckyard/deck-forensicgenetics)
@@ -66,3 +66,10 @@ jennifer run examples/readtable.j [export.xml] ["POPULATION"]
 ## Licence
 
 LGPL-3.0-only, see [LICENSE](LICENSE). Copyright (C) 2026 mplx &lt;mplx@jennifer-lang.dev&gt;.
+
+## Trademarks
+
+STRidER™ and other product and company names may be trademarks of their
+respective owners. They are used only to identify the data and products this
+deck works with. This deck is an independent project, not affiliated with,
+sponsored or endorsed by the STRidER project.

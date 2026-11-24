@@ -1,7 +1,7 @@
 # Limitations
 
 **Validated against one export.** The reader has been run over one full
-STRidER download: 45 loci across 33 populations, 704 locus-by-population cells,
+STRidER™ download: 45 loci across 33 populations, 704 locus-by-population cells,
 every locus summing to 1.0 within the six significant figures published, and
 all 33 populations converting. Exports change, so check yours with
 `allFrequencySums`; a misread table looks plausible rather than broken.

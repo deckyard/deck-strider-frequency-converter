@@ -3,7 +3,7 @@
 ## Getting the table
 
 The deck ships no real data. The published frequencies belong to their
-authors, and STRidER's [terms of use](https://strider.online/terms_of_use)
+authors, and STRidER™'s [terms of use](https://strider.online/terms_of_use)
 reserve redistribution:
 
 > The reproduction, duplication, editing, dissemination and all type of
@@ -58,7 +58,7 @@ Use the bulk sum accessors, not a loop over `frequencySum`. A `Table` is a
 value, so each accessor call copies the whole export, every population
 included. On a synthetic export of the real one's shape (45 loci, 33
 populations, 704 locus-by-population cells, 0.58 MB; median of five runs,
-Ryzen 7 5800X), the same 704 sums cost:
+Ryzen™ 7 5800X), the same 704 sums cost:
 
 | Form | `Table` copies | ms |
 | --- | ---: | ---: |

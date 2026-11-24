@@ -1,6 +1,6 @@
 # Choosing a dataset
 
-STRidER publishes frequencies per country, per continent and for the whole
+STRidER™ publishes frequencies per country, per continent and for the whole
 database. They give different numbers, so a match probability belongs to a
 profile and a chosen reference population together. One export carries all of
 them; pick by name after the parse:

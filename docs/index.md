@@ -1,6 +1,6 @@
 # @deckyard/strider
 
-Reads a [STRidER](https://strider.online/) STR allele-frequency export in XML
+Reads a [STRidER™](https://strider.online/) STR allele-frequency export in XML
 and converts one population of it into the `FrequencyDb` that
 [`@deckyard/forensicgenetics`](https://deckyard.github.io/deck-forensicgenetics/)
 computes with.
@@ -30,3 +30,10 @@ The deck does not:
 - combine populations: that operates on `FrequencyDb` values and lives in the
   core, see [Choosing a dataset](datasets.md)
 - apply a frequency floor: `forensics.alleleFrequency` does that on read
+
+## Trademarks
+
+STRidER™ and other product and company names may be trademarks of their
+respective owners. They are used only to identify the data and products this
+deck works with. This deck is an independent project, not affiliated with,
+sponsored or endorsed by the STRidER project.

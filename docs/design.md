@@ -6,7 +6,7 @@
 ## Scope
 
 `@deckyard/strider` reads the allele-frequency export of
-[STRidER](https://strider.online/), the ENFSI STR reference database, and
+[STRidER™](https://strider.online/), the ENFSI STR reference database, and
 converts one population of it into the `forensics.FrequencyDb` of
 `@deckyard/forensicgenetics`. It is pure computation on a string the caller has
 already read: `src/` does no file or network I/O and declares no capabilities.
