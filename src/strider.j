@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.27.0
+# pragma-jennifer-version: >=0.28.0
 
 /**
  * Reader for STRidER autosomal-STR allele-frequency exports in XML.
@@ -201,7 +201,7 @@ func checkRepeats(labels as list of string, where as string) {
         if (not regex.matches(REPEAT_PATTERN, $label)) {
             continue;
         }
-        def count as string init decimal.toString(decimal.normalize(decimal.from($label)));
+        def count as string init convert.toString(decimal.normalize(decimal.from($label)));
         if (maps.has($byCount, $count)) {
             fail("duplicate allele '" + $label + "' (same repeat count as '" +
                 $byCount[$count] + "')" + $where);
