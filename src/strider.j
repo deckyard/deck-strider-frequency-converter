@@ -39,7 +39,7 @@
  * @module strider
  * @see https://strider.online/ - the ENFSI STRidER reference database
  * @example
- * import "@deckyard/strider/" as strider;
+ * import "@skiffyard/strider/" as strider;
  * def t as strider.Table init strider.parse(fs.readString("strider.xml"));
  * strider.populations($t);                     # ["Entire Database", ...]
  * strider.frequencySum($t, "AUSTRIA", "TH01"); # ~1.0 for a sound table

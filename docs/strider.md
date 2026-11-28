@@ -1,7 +1,7 @@
 # `strider`
 
 ```jennifer
-import "@deckyard/strider/" as strider;
+import "@skiffyard/strider/" as strider;
 ```
 
 Signatures and struct fields are in the [cheatsheet](cheatsheet.md), the

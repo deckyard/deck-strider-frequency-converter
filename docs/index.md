@@ -1,14 +1,14 @@
-# @deckyard/strider
+# @skiffyard/strider
 
 Reads a [STRidER™](https://strider.online/) STR allele-frequency export in XML
 and converts one population of it into the `FrequencyDb` that
 [`@deckyard/forensicgenetics`](https://deckyard.github.io/deck-forensicgenetics/)
 computes with.
 
-This deck is part of [Deckyard](https://github.com/deckyard), community decks for [Jennifer](https://jennifer-lang.dev/).
+This deck is part of [Skiffyard](https://github.com/skiffyard), small community decks for [Jennifer](https://jennifer-lang.dev/).
 
 ```jennifer
-import "@deckyard/strider/" as strider;
+import "@skiffyard/strider/" as strider;
 import "@deckyard/forensicgenetics/" as forensics;
 
 def t as strider.Table init strider.parse($xml);

@@ -4,7 +4,7 @@
 # strider cheatsheet
 
 ```jennifer
-import "@deckyard/strider/" as strider;
+import "@skiffyard/strider/" as strider;
 ```
 
 Errors: [strider](strider.md). `tools/check-docs.sh` checks every signature and

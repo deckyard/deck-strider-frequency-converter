@@ -5,15 +5,15 @@ Requires Jennifer 0.28.0 or newer and `@deckyard/forensicgenetics`.
 ## With jvc
 
 ```sh
-jvc source @deckyard/strider https://github.com/deckyard/deck-strider-frequency-converter.git
-jvc add @deckyard/strider
+jvc source @skiffyard/strider https://github.com/skiffyard/deck-strider-frequency-converter.git
+jvc add @skiffyard/strider
 jvc install
 ```
 
 Neither this deck nor `@deckyard/forensicgenetics` is in the public registry
 yet, so both resolve from their git remotes by tag. The `source` line points jvc
 at this deck; its manifest already has the `[sources]` entry for the
-dependency. Once both are published, `jvc add @deckyard/strider` and
+dependency. Once both are published, `jvc add @skiffyard/strider` and
 `jvc install` are enough.
 
 `jvc install` pins what it resolved in `camcorder.lock`, so an install on
@@ -22,11 +22,11 @@ another machine gets the same versions.
 ## By hand
 
 The vendor tree is a plain directory layout. Copy `src/` from a checkout or a
-release archive (`deckyard-strider-<version>.tar.gz`):
+release archive (`skiffyard-strider-<version>.tar.gz`):
 
 ```sh
-mkdir -p vendor/deckyard/strider vendor/deckyard/forensicgenetics
-cp path/to/deck-strider-frequency-converter/src/*.j vendor/deckyard/strider/
+mkdir -p vendor/skiffyard/strider vendor/deckyard/forensicgenetics
+cp path/to/deck-strider-frequency-converter/src/*.j vendor/skiffyard/strider/
 cp path/to/deck-forensicgenetics/src/*.j            vendor/deckyard/forensicgenetics/
 rm -f vendor/*/*/*_test.j
 ```
@@ -45,11 +45,11 @@ your-project/
         lineage.j
 ```
 
-The tree is flat: `@deckyard/strider/` expands to the package-named entry
+The tree is flat: `@skiffyard/strider/` expands to the package-named entry
 `strider/strider.j`.
 
 ```jennifer
-import "@deckyard/strider/" as strider;
+import "@skiffyard/strider/" as strider;
 import "@deckyard/forensicgenetics/" as forensics;
 ```
 

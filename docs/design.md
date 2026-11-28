@@ -5,7 +5,7 @@
 
 ## Scope
 
-`@deckyard/strider` reads the allele-frequency export of
+`@skiffyard/strider` reads the allele-frequency export of
 [STRidER™](https://strider.online/), the ENFSI STR reference database, and
 converts one population of it into the `forensics.FrequencyDb` of
 `@deckyard/forensicgenetics`. It is pure computation on a string the caller has
@@ -31,7 +31,7 @@ Not in scope:
   runs one way: forensicgenetics does not import this deck (its docs point
   here). Until forensicgenetics is in the registry, `deck.toml` resolves it
   through a `[sources]` git URL.
-- **Package name and repository differ.** The package is `@deckyard/strider`;
+- **Package name and repository differ.** The package is `@skiffyard/strider`;
   the repository is `deck-strider-frequency-converter`.
 - **Parse once, choose the population afterwards.** One export carries the
   whole database, each continent and each contributing country, locus-major
