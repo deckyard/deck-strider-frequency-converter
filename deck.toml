@@ -1,6 +1,6 @@
 [package]
-name = "@deckyard/strider"
-version = "0.2.0"
+name = "@skiffyard/strider"
+version = "0.3.0"
 description = "Reader for STRidER-style STR allele-frequency tables in XML, converting them into the generic @deckyard/forensicgenetics FrequencyDb."
 license = "LGPL-3.0-only"
 authors = ["mplx <mplx@jennifer-lang.dev>"]
@@ -8,9 +8,9 @@ capabilities = []
 keywords = ["forensics", "genetics", "str", "strider", "xml"]
 
 [package.urls]
-deck = "https://raw.githubusercontent.com/deckyard/deck-strider-frequency-converter/main/deck.toml"
-homepage = "https://github.com/deckyard/deck-strider-frequency-converter"
-manual = "https://deckyard.github.io/deck-strider-frequency-converter/"
+deck = "https://raw.githubusercontent.com/skiffyard/deck-strider-frequency-converter/main/deck.toml"
+homepage = "https://github.com/skiffyard/deck-strider-frequency-converter"
+manual = "https://skiffyard.github.io/deck-strider-frequency-converter/"
 
 [engines]
 jennifer = ">=0.28.0"
